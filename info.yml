@@ -11,8 +11,8 @@
 # Metadata defining the behaviour and requirements for this configuration
 
 # More verbose description of this item
-display_name: "Default Config"
-description: "A VFX Example Config and our default configuration."
+display_name: "Default Unreal Config"
+description: "An Unreal Example Config and our default configuration."
 
 # Required minimum versions for this item to run
 requires_shotgun_version: "v7.2.0"

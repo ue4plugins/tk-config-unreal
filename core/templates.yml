@@ -121,6 +121,20 @@ keys:
         default: ma
         alias: extension
 
+    # These are used by Unreal
+    sg_category_1:
+        type: str
+        shotgun_entity_type: Asset
+        shotgun_field_name: sg_category_1
+    sg_category_2:
+        type: str
+        shotgun_entity_type: Asset
+        shotgun_field_name: sg_category_2
+    sg_category_3:
+        type: str
+        shotgun_entity_type: Asset
+        shotgun_field_name: sg_category_3
+
 #
 # The paths section contains all the the key locations where files are to be stored
 # by Sgtk Apps. Each path is made up of several keys (like {version} or {shot}) and
@@ -358,6 +372,16 @@ paths:
     hiero_render_path:
         definition: 'sequences/{Sequence}/{Shot}/editorial/{YYYY}_{MM}_{DD}/renders/{project}_{Shot}.{SEQ}.dpx'
 
+    #
+    # Unreal
+    #
+
+    # level sequence review output from unreal
+    unreal_movie_render:
+        definition: 'shotgun/movie_render/{name}[.v{version}].avi'
+    unreal_movie_publish:
+        definition: 'to_publish/{name}[.v{version}].avi'
+
     ##########################################################################################
     # Asset pipeline
 
@@ -414,6 +438,20 @@ paths:
     # The location of published maya files
     maya_asset_publish:
         definition: '@asset_root/publish/maya/{name}.v{version}.{maya_extension}'
+    # use maya_asset_work
+    # maya_scenes: "shotgun/maya_scenes/{name}[.v{version}].mb"
+    # use maya_asset_publish
+    # maya_scenes_publish: "shotgun/maya_publish/{name}[.v{version}].mb"
+    # The location of FBX exports for Unreal
+    maya_asset_fbx_export: 
+        definition: '@asset_root/work/fbx/{name}.v{version}.fbx'
+    maya_asset_fbx_publish:
+        definition: '@asset_root/publish/fbx/{name}.v{version}.fbx'
+    # The location of turntable review output rendered in Unreal
+    maya_ue4_turntable_render:
+        definition: '@asset_root/work/images/{name}_turntable_v{version}.avi'
+    maya_ue4_turntable_publish:
+        definition: '@asset_root/review/{name}_turntable_v{version}.avi'
 
 
     #
@@ -527,6 +565,17 @@ paths:
         definition: '@asset_root/publish/nuke/{name}.v{version}.nk'
 
 
+    #
+    # Unreal
+    #
+
+    # static mesh export from unreal
+    unreal_asset_fbx_export:
+        definition: 'shotgun/fbx_export/{name}.fbx'
+    unreal_asset_publish:
+        definition: 'to_publish/{name}.fbx'
+
+
 #
 # The strings section is similar to the paths section - but rather than defining paths
 # on disk, it contains a list of strings. Strings are typically used when you want to be
@@ -549,3 +598,14 @@ strings:
 
     # define how new Mari projects should be named
     mari_asset_project_name: "{mari.project_name} - Asset {asset_name}, {task_name}"
+
+    # base templates for a Shotgun asset to import into the Unreal Content Browser
+    unreal_asset_template: "/Game/Assets/{sg_asset_type}/{Asset}/"
+    unreal_asset_notype: "/Game/Assets/{Asset}/"
+    unreal_published_file: "/Game/PublishedFiles/{Asset}/"
+
+    # project-specific templates using categories to classify assets for Unreal import
+    unreal_fields_query: "{sg_asset_type} {Asset} {sg_category_1} {sg_category_2} {sg_category_3}"
+    unreal_asset_3_categories: "/Game/Assets/{sg_category_1}/{sg_category_2}/{sg_category_3}/{Asset}/"
+    unreal_asset_2_categories: "/Game/Assets/{sg_category_1}/{sg_category_2}/{Asset}/"
+    unreal_asset_1_category: "/Game/Assets/{sg_category_1}/{Asset}/"

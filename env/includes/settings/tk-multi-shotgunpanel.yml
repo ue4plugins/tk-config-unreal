@@ -223,3 +223,10 @@ settings.tk-multi-shotgunpanel.photoshop:
     - actions: [quicktime_clipboard, sequence_clipboard, add_to_playlist]
       filters: {}
   location: "@apps.tk-multi-shotgunpanel.location"
+
+# unreal
+settings.tk-multi-shotgunpanel.unreal:
+  actions_hook: '{self}/general_actions.py:{engine}/tk-multi-shotgunpanel/tk-unreal_actions.py'
+  action_mappings: {}
+  enable_context_switch: true
+  location: "@apps.tk-multi-shotgunpanel.location"

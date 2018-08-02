@@ -79,4 +79,10 @@ engines.tk-shotgun.location:
   name: tk-shotgun
   version: v0.8.2
 
+# Unreal
+engines.tk-unreal.location:
+  type: git_branch
+  path: git@github.com:shotgunsoftware/tk-unreal
+  branch: master
+  version: 3f7ab98bfe2f8b475a64208481e8037d21ab1c4b
 
