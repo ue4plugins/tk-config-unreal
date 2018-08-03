@@ -40,50 +40,11 @@ class MayaFBXPublishPlugin(HookBaseClass):
         loader_url = "https://support.shotgunsoftware.com/hc/en-us/articles/219033078"
 
         return """
-        Publishes the file to Shotgun. A <b>Publish</b> entry will be
-        created in Shotgun which will include a reference to the file's current
-        path on disk. If a publish template is configured, a copy of the
-        current session will be copied to the publish template path which
-        will be the file that is published. Other users will be able to access
-        the published file via the <b><a href='%s'>Loader</a></b> so long as
-        they have access to the file's location on disk.
-
-        If the session has not been saved, validation will fail and a button
-        will be provided in the logging output to save the file.
-
-        <h3>File versioning</h3>
-        If the filename contains a version number, the process will bump the
-        file to the next version after publishing.
-
-        The <code>version</code> field of the resulting <b>Publish</b> in
-        Shotgun will also reflect the version number identified in the filename.
-        The basic worklfow recognizes the following version formats by default:
-
-        <ul>
-        <li><code>filename.v###.ext</code></li>
-        <li><code>filename_v###.ext</code></li>
-        <li><code>filename-v###.ext</code></li>
-        </ul>
-
-        After publishing, if a version number is detected in the work file, the
-        work file will automatically be saved to the next incremental version
-        number. For example, <code>filename.v001.ext</code> will be published
-        and copied to <code>filename.v002.ext</code>
-
-        If the next incremental version of the file already exists on disk, the
-        validation step will produce a warning, and a button will be provided in
-        the logging output which will allow saving the session to the next
-        available version number prior to publishing.
-
-        <br><br><i>NOTE: any amount of version number padding is supported. for
-        non-template based workflows.</i>
-
-        <h3>Overwriting an existing publish</h3>
-        In non-template workflows, a file can be published multiple times,
-        however only the most recent publish will be available to other users.
-        Warnings will be provided during validation if there are previous
-        publishes.
-        """ % (loader_url,)
+        <p>This plugin exports the Asset for the current session as an FBX file.
+        The scene will be exported to the path defined by this plugin's configured 
+        "Publish Template" setting.  The resulting FBX file can then be imported
+        into Unreal Engine via the Loader.</p>
+        """
 
     @property
     def settings(self):

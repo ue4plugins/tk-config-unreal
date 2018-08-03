@@ -159,14 +159,32 @@ class MayaSessionCollector(HookBaseClass):
             fbx_display_name
         )
         
+        # get the icon path to display for this item
+        icon_path = os.path.join(
+            self.disk_location,
+            os.pardir,
+            "icons",
+            "fbx.png"
+        )
+
         fbx_item.set_icon_from_path(icon_path)
 
         # Add an Unreal turntable render item
         turntable_item = session_item.create_item(
             "maya.turntable",
-            "Unreal turntable render",
-            filename + " turntable"
+            "Turntable",
+            "Render Asset Turntable in Unreal"
         )
+
+        # get the icon path to display for this item
+        icon_path = os.path.join(
+            self.disk_location,
+            os.pardir,
+            "icons",
+            "unreal.png"
+        )
+
+        turntable_item.set_icon_from_path(icon_path)
         
         # discover the project root which helps in discovery of other
         # publishable items
