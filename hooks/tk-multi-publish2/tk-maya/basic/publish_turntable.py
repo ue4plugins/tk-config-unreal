@@ -1,3 +1,7 @@
+# This file is based on templates provided and copyrighted by Autodesk, Inc.
+# This file has been modified by Epic Games, Inc. and is subject to the license 
+# file included in this repository.
+
 import os
 import maya.cmds as cmds
 import maya.mel as mel
@@ -7,29 +11,6 @@ import subprocess
 import sys
 
 HookBaseClass = sgtk.get_hook_baseclass()
-
-# Script setup:
-# These values must be setup to match the local Unreal config
-# Also, the Unreal project must have a map for the turntable environment
-# and a level sequence asset for the turntable animation
-
-# Path to the Unreal executable to use to render the turntable movie
-unreal_exec_path = r"C:\Program Files\Epic Games\UE_4.20\Engine\Binaries\Win64\UE4Editor.exe"
-
-# Path to the Unreal project to load where the turntable asset will be imported into
-unreal_project_path = r'"C:\Users\ryan.mayeda\Documents\Unreal Projects\Shotgun420\Shotgun420.uproject"'
-
-# Unreal path of the map/level where to instantiate the asset into
-# Should have the turntable environment with the desired lighting
-turntable_map_path = r"/Game/TurntableTest.umap"
-
-# Unreal path of the turntable sequence to use to render the movie
-# Should be a camera sequence rotating around the origin (supported by the unreal_setup_turntable script)
-# Alternatively, it could be a turntable rotating around the origin with the asset as its child
-sequence_path = "/Game/TurntableSequence.TurntableSequence"
-
-# Unreal content browser path where assets will be stored (asset import and map save)
-unreal_content_browser_path = "/Game/maya_turntable_assets/"
 
 class MayaUnrealTurntablePublishPlugin(HookBaseClass):
     """
@@ -55,8 +36,8 @@ class MayaUnrealTurntablePublishPlugin(HookBaseClass):
         loader_url = "https://support.shotgunsoftware.com/hc/en-us/articles/219033078"
 
         return """
-        <p>This plugin renders a turntable of the Asset for the current session
-        in Unreal Engine.  The Asset will be exported to FBX and imported into
+        <p>This plugin renders a turntable of the asset for the current session
+        in Unreal Engine.  The asset will be exported to FBX and imported into
         an Unreal Project for rendering turntables.  A command line Unreal render
         will then be initiated and output to a templated location on disk.  Then,
         the turntable render will be published to Shotgun and submitted for review
@@ -107,9 +88,54 @@ class MayaUnrealTurntablePublishPlugin(HookBaseClass):
             }
         }
 
+        unreal_engine_version_setting = {
+            "Unreal Engine Version": {
+                "type": "string",
+                "default": None,
+                "description": "Version of the Unreal Engine exectuable to use."
+            }
+        }
+        
+        unreal_project_path_setting = {
+            "Unreal Project Path": {
+                "type": "string",
+                "default": None,
+                "description": "Path to the Unreal project to load."
+            }
+        }
+
+        turntable_map_path_setting = {
+            "Turntable Map Path": {
+                "type": "string",
+                "default": None,
+                "description": "Unreal path to the turntable map to use to render the turntable."
+            }
+        }
+        
+        sequence_path_setting = {
+            "Sequence Path": {
+                "type": "string",
+                "default": None,
+                "description": "Unreal path to the level sequence to use to render the turntable."
+            }
+        }
+
+        assets_output_path_setting = {
+            "Turntable Assets Path": {
+                "type": "string",
+                "default": None,
+                "description": "Unreal output path where the turntable assets will be imported."
+            }
+        }
+
         # update the base settings
         base_settings.update(maya_publish_settings)
         base_settings.update(work_template_setting)
+        base_settings.update(unreal_engine_version_setting)
+        base_settings.update(unreal_project_path_setting)
+        base_settings.update(turntable_map_path_setting)
+        base_settings.update(sequence_path_setting)
+        base_settings.update(assets_output_path_setting)
 
         return base_settings
 
@@ -189,11 +215,16 @@ class MayaUnrealTurntablePublishPlugin(HookBaseClass):
         """
 
         # Validate the Unreal executable and project
+        unreal_exec_path = self.get_unreal_project_path() or self._get_unreal_exec_path(settings)
         if not unreal_exec_path or not os.path.isfile(unreal_exec_path):
             self.logger.error("Unreal executable not found at {}".format(unreal_exec_path))
-            
+            return False
+
+        # Use the Unreal project path override if it's defined, otherwise use the path from the settings
+        unreal_project_path = self.get_unreal_project_path() or self._get_unreal_project_path(settings)
         if not unreal_project_path or not os.path.isfile(unreal_project_path):
             self.logger.error("Unreal project not found at {}".format(unreal_project_path))
+            return False
 
         publisher = self.parent
         path = _session_path()
@@ -234,6 +265,25 @@ class MayaUnrealTurntablePublishPlugin(HookBaseClass):
         # etc.
         path = sgtk.util.ShotgunPath.normalize(path)
 
+        # Validate the Unreal data settings
+        turntable_map_path_setting = settings.get("Turntable Map Path")
+        turntable_map_path = turntable_map_path_setting.value if turntable_map_path_setting else None
+        if not turntable_map_path:
+            self.logger.debug("No Unreal turntable map configured.")
+            return False
+
+        sequence_path_setting = settings.get("Sequence Path")
+        sequence_path = sequence_path_setting.value if sequence_path_setting else None
+        if not sequence_path:
+            self.logger.debug("No Unreal turntable sequence configured.")
+            return False
+
+        unreal_content_browser_path_setting = settings.get("Turntable Assets Path")
+        unreal_content_browser_path = unreal_content_browser_path_setting.value if unreal_content_browser_path_setting else None
+        if not unreal_content_browser_path:
+            self.logger.debug("No Unreal turntable assets output path configured.")
+            return False
+            
         # if the session item has a known work template, see if the path
         # matches. if not, warn the user and provide a way to save the file to
         # a different path
@@ -342,11 +392,7 @@ class MayaUnrealTurntablePublishPlugin(HookBaseClass):
         # The Unreal turntable map to duplicate where the asset will be instantiated into
         script_args.append(turntable_map_path)
 
-        self._unreal_execute_script(script_path, script_args)
-        
-        # The duplicated turntable map with the asset in it
-        # Asset and map cannot have the same name
-        unreal_map_path = unreal_content_browser_path + asset_name + "_level"
+        self._unreal_execute_script(unreal_exec_path, unreal_project_path, script_path, script_args)
         
         # =======================
         # 4. Render the turntable to movie.
@@ -361,7 +407,7 @@ class MayaUnrealTurntablePublishPlugin(HookBaseClass):
         # Ensure that the destination path exists before rendering the sequence
         self.parent.ensure_folder_exists(destination_path)
 
-        success, output_filepath = self._unreal_render_sequence_to_movie(unreal_map_path, sequence_path, destination_path, asset_name)
+        success, output_filepath = self._unreal_render_sequence_to_movie(unreal_exec_path, unreal_project_path, turntable_map_path, sequence_path, destination_path, asset_name)
         
         if not success:
             return False
@@ -492,18 +538,17 @@ class MayaUnrealTurntablePublishPlugin(HookBaseClass):
             
         return True
         
-    def _unreal_execute_script(self, script_path, script_args):
+    def _unreal_execute_script(self, unreal_exec_path, unreal_project_path, script_path, script_args):
         command_args = []
         command_args.append(unreal_exec_path)       # Unreal executable path
         command_args.append(unreal_project_path)    # Unreal project
-        # command_args.append(unreal_map_path)        # Level to load for rendering the sequence
         
         command_args.append('-ExecutePythonScript="{} {}"'.format(script_path, " ".join(script_args)))
         self.logger.info("Executing script in Unreal with arguments: {}".format(command_args))
         
         subprocess.call(" ".join(command_args))
 
-    def _unreal_render_sequence_to_movie(self, unreal_map_path, sequence_path, destination_path, movie_name):
+    def _unreal_render_sequence_to_movie(self, unreal_exec_path, unreal_project_path, unreal_map_path, sequence_path, destination_path, movie_name):
         """
         Renders a given sequence in a given level to a movie file
         
@@ -558,6 +603,7 @@ class MayaUnrealTurntablePublishPlugin(HookBaseClass):
         cmdline_args.append("-MovieFormat=Video")
         cmdline_args.append("-MovieFrameRate=24")
         cmdline_args.append("-MovieQuality=75")
+        cmdline_args.append("-MovieWarmUpFrames=30")
         cmdline_args.append("-NoTextureStreaming")
         cmdline_args.append("-NoLoadingScreen")
         cmdline_args.append("-NoScreenMessages")
@@ -567,7 +613,86 @@ class MayaUnrealTurntablePublishPlugin(HookBaseClass):
         # Send the arguments as a single string because some arguments could contain spaces and we don't want those to be quoted
         subprocess.call(" ".join(cmdline_args))
 
-        return os.path.isfile(output_filepath), output_filepath        
+        return os.path.isfile(output_filepath), output_filepath
+
+    def _get_unreal_exec_path(self, settings):
+        """
+        Return the path to the Unreal Engine executable to use
+        Uses the Engine Launcher logic to scan for Unreal executables and selects the one that
+        matches the version defined in the settings, prioritizing non-development builds
+        :returns an absolute path to the Unreal Engine executable to use:
+        """
+        unreal_engine_version_setting = settings.get("Unreal Engine Version")
+        unreal_engine_version = unreal_engine_version_setting.value if unreal_engine_version_setting else None
+        
+        if not unreal_engine_version:
+            return None
+
+        # Create a launcher for the current context
+        engine = sgtk.platform.current_engine()
+        software_launcher = sgtk.platform.create_engine_launcher(engine.sgtk, engine.context, "tk-unreal")
+
+        # Discover which versions of Unreal are available
+        software_versions = software_launcher.scan_software()
+        valid_versions = []
+        for software_version in software_versions:
+            if software_version.version.startswith(unreal_engine_version):
+                # Insert non-dev builds at the start of the list
+                if "(Dev Build)" not in software_version.display_name:
+                    valid_versions.insert(0, software_version)
+                else:
+                    valid_versions.append(software_version)
+
+        # Take the first valid version
+        if valid_versions:
+            return valid_versions[0].path
+            
+        return None
+
+    def _get_unreal_project_path(self, settings):
+        """
+        Return the path to the Unreal project to use based on the "Unreal Project Path" and
+        "Unreal Engine Version" settings. It uses the same path resolution as for hook paths
+        to expand {config} and {engine} to their absolute path equivalent.
+        :returns an absolute path to the Unreal project to use:
+        """
+        unreal_project_path_setting = settings.get("Unreal Project Path")
+        unreal_project_path = unreal_project_path_setting.value if unreal_project_path_setting else None
+        if not unreal_project_path:
+            return None
+
+        unreal_engine_version_setting = settings.get("Unreal Engine Version")
+        unreal_engine_version = unreal_engine_version_setting.value if unreal_engine_version_setting else None
+        if unreal_engine_version:
+            unreal_project_path = unreal_project_path.replace("{unreal_engine_version}", unreal_engine_version)
+        
+        if unreal_project_path.startswith("{config}"):
+            hooks_folder = self.sgtk.pipeline_configuration.get_hooks_location()
+            unreal_project_path = unreal_project_path.replace("{config}", hooks_folder)
+        elif unreal_project_path.startswith("{engine}"):
+            engine = sgtk.platform.current_engine()
+            engine_hooks_path = os.path.join(engine.disk_location, "hooks")
+            unreal_project_path = unreal_project_path.replace("{engine}", engine_hooks_path)
+
+        return os.path.normpath(unreal_project_path)
+        
+    def get_unreal_exec_path(self):
+        """
+        Return the path to the Unreal Engine executable to use
+        Override this function in a custom hook derived from this class to implement your own logic
+        or override the path from the settings
+        :returns an absolute path to the Unreal Engine executable to use; None to use the path from the settings:
+        """
+        return None
+        
+    def get_unreal_project_path(self):
+        """
+        Return the path to the Unreal project to use
+        Override this function in a custom hook derived from this class to implement your own logic
+        or override the path from the settings
+        :returns an absolute path to the Unreal project to use; None to use the path from the settings:
+        """
+        return None
         
 def _get_work_path(path, work_template):
     """

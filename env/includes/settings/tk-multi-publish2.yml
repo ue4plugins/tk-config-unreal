@@ -180,13 +180,17 @@ settings.tk-multi-publish2.maya.asset_step:
   - name: Publish to Shotgun
     hook: "{self}/publish_file.py:{config}/tk-multi-publish2/tk-maya/basic/publish_fbx.py"
     settings:
-        Work Template: maya_asset_fbx_export
         Publish Template: maya_asset_fbx_publish
   - name: Publish and Submit for Review
     hook: "{self}/publish_file.py:{config}/tk-multi-publish2/tk-maya/basic/publish_turntable.py"
     settings:
         Work Template: maya_ue4_turntable_render
         Publish Template: maya_ue4_turntable_publish
+        Unreal Engine Version: "4.20"
+        Unreal Project Path: "{config}/tk-multi-publish2/tk-maya/unreal/resources/{unreal_engine_version}/turntable/turntable.uproject"
+        Turntable Map Path: "/Game/turntable/level/turntable.umap"
+        Sequence Path: "/Game/turntable/sequence/turntable_sequence.turntable_sequence"
+        Turntable Assets Path: "/Game/maya_turntable_assets/"   # note the trailing '/' must be included
   help_url: *help_url
   location: "@apps.tk-multi-publish2.location"
 

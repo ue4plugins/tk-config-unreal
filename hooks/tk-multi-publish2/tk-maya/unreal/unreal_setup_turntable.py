@@ -1,3 +1,5 @@
+# Copyright 2018 Epic Games, Inc. 
+
 # Setup the asset in the turntable level for rendering
 
 import unreal
@@ -19,12 +21,27 @@ def main(argv):
     content_browser_path = argv[1]
     turntable_map_path = argv[2]
 
-    # Duplicate the turntable template map
-    world = unreal.EditorLoadingAndSavingUtils.new_map_from_template(turntable_map_path, False)
+    # Load the turntable map where to instantiate the imported asset
+    world = unreal.EditorLoadingAndSavingUtils.load_map(turntable_map_path)
     
     if not world:
         return
-    
+
+    # Find the turntable actor, which is used in the turntable sequence that rotates it 360 degrees
+    turntable_actor = None
+    level_actors = unreal.EditorLevelLibrary.get_all_level_actors()
+    for level_actor in level_actors:
+        if level_actor.get_name() == "turntable":
+            turntable_actor = level_actor
+            break
+            
+    if not turntable_actor:
+        return
+        
+    # Destroy any actors attached to the turntable (attached for a previous render)
+    for attached_actor in turntable_actor.get_attached_actors():
+        unreal.EditorLevelLibrary.destroy_actor(attached_actor)
+        
     # Derive the imported asset path from the given FBX filename and content browser path
     fbx_filename = os.path.basename(fbx_file_path)
     asset_name = os.path.splitext(fbx_filename)[0]
@@ -35,11 +52,25 @@ def main(argv):
     if not asset:
         return
         
-    unreal.EditorLevelLibrary.spawn_actor_from_object(asset, unreal.Vector.ZERO_VECTOR)
+    actor = unreal.EditorLevelLibrary.spawn_actor_from_object(asset, unreal.Vector.ZERO_VECTOR)
     
-    # Save the duplicated map (can't have the same name for the static mesh asset and the map)
-    new_map_filename = content_browser_path + asset_name + "_level"
-    unreal.EditorLoadingAndSavingUtils.save_map(world, new_map_filename)
+    # Scale the actor to fit the frame, which is dependent on the settings of the camera used in the turntable sequence
+    # The scale values must be tweaked if the camera settings change
+    origin, bounds = actor.get_actor_bounds(True)
+    scale_x = 400 / bounds.x
+    scale_y = 400 / bounds.y
+    scale_z = 100 / bounds.z
+    scale = min(scale_x, scale_y, scale_z)
+    actor.set_actor_scale3d(unreal.Vector(scale, scale, scale))
+    
+    # Offset the actor location so that it rotates around its center
+    origin = origin * scale
+    actor.set_actor_location(unreal.Vector(-origin.x, -origin.y, -origin.z), False, True)
+    
+    # Attach the newly spawned actor to the turntable
+    actor.attach_to_actor(turntable_actor, "", unreal.AttachmentRule.KEEP_WORLD, unreal.AttachmentRule.KEEP_WORLD, unreal.AttachmentRule.KEEP_WORLD, False)
+
+    unreal.EditorLevelLibrary.save_current_level()
     
 if __name__ == "__main__":
     # Script arguments must be, in order:

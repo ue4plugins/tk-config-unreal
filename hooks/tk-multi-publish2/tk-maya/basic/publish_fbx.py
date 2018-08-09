@@ -37,8 +37,6 @@ class MayaFBXPublishPlugin(HookBaseClass):
         contain simple html for formatting.
         """
 
-        loader_url = "https://support.shotgunsoftware.com/hc/en-us/articles/219033078"
-
         return """
         <p>This plugin exports the Asset for the current session as an FBX file.
         The scene will be exported to the path defined by this plugin's configured 
@@ -80,19 +78,7 @@ class MayaFBXPublishPlugin(HookBaseClass):
             }
         }
 
-        work_template_setting = {
-            "Work Template": {
-                "type": "template",
-                "default": None,
-                "description": "Template path for exported FBX files. Should"
-                               "correspond to a template defined in "
-                               "templates.yml.",
-            }
-        }
-
-        # update the base settings
         base_settings.update(maya_publish_settings)
-        base_settings.update(work_template_setting)
 
         return base_settings
 
@@ -133,29 +119,39 @@ class MayaFBXPublishPlugin(HookBaseClass):
         :returns: dictionary with boolean keys accepted, required and enabled
         """
 
-        # if a publish template is configured, disable context change. This
+        accepted = True
+        publisher = self.parent
+        template_name = settings["Publish Template"].value
+
+        # ensure a work file template is available on the parent item
+        work_template = item.parent.properties.get("work_template")
+        if not work_template:
+            self.logger.debug(
+                "A work template is required for the session item in order to "
+                "publish an FBX file. Not accepting FBX item."
+            )
+            accepted = False
+
+        # ensure the publish template is defined and valid and that we also have
+        publish_template = publisher.get_template_by_name(template_name)
+        if not publish_template:
+            self.logger.debug(
+                "The valid publish template could not be determined for the "
+                "FBX item. Not accepting the item."
+            )
+            accepted = False
+
+        # we've validated the publish template. add it to the item properties
+        # for use in subsequent methods
+        item.properties["publish_template"] = publish_template
+
+        # because a publish template is configured, disable context change. This
         # is a temporary measure until the publisher handles context switching
         # natively.
-        if settings.get("Publish Template").value:
-            item.context_change_allowed = False
+        item.context_change_allowed = False
 
-        path = _session_path()
-
-        if not path:
-            # the session has not been saved before (no path determined).
-            # provide a save button. the session will need to be saved before
-            # validation will succeed.
-            self.logger.warn(
-                "The Maya session has not been saved.",
-                extra=_get_save_as_action()
-            )
-
-        self.logger.info(
-            "Maya '%s' plugin accepted the current Maya session." %
-            (self.name,)
-        )
         return {
-            "accepted": True,
+            "accepted": accepted,
             "checked": True
         }
 
@@ -171,7 +167,6 @@ class MayaFBXPublishPlugin(HookBaseClass):
         :returns: True if item is valid, False otherwise.
         """
 
-        publisher = self.parent
         path = _session_path()
 
         # ---- ensure the session has been saved
@@ -186,90 +181,39 @@ class MayaFBXPublishPlugin(HookBaseClass):
             )
             raise Exception(error_msg)
 
-        # ensure we have an updated project root
-        project_root = cmds.workspace(q=True, rootDirectory=True)
-        item.properties["project_root"] = project_root
-
-        # log if no project root could be determined.
-        if not project_root:
-            self.logger.info(
-                "Your session is not part of a maya project.",
-                extra={
-                    "action_button": {
-                        "label": "Set Project",
-                        "tooltip": "Set the maya project",
-                        "callback": lambda: mel.eval('setProject ""')
-                    }
-                }
-            )
-
-        # ---- check the session against any attached work template
-
-        # get the path in a normalized state. no trailing separator,
-        # separators are appropriate for current os, no double separators,
-        # etc.
+        # get the normalized path
         path = sgtk.util.ShotgunPath.normalize(path)
 
-        # if the session item has a known work template, see if the path
-        # matches. if not, warn the user and provide a way to save the file to
-        # a different path
-        work_template_setting = settings.get("Work Template")
-        work_template = publisher.get_template_by_name(work_template_setting.value)
-        if work_template:
-            item.properties["work_template"] = work_template
-            self.logger.debug(
-                "Work template configured as {}.".format(work_template))
-        else:
-            self.logger.debug("No work template configured.")
-            return False
+        # get the configured work file template
+        work_template = item.parent.properties.get("work_template")
+        publish_template = item.properties.get("publish_template")
 
-        # ---- see if the version can be bumped post-publish
+        # get the current scene path and extract fields from it using the work
+        # template:
+        work_fields = work_template.get_fields(path)
 
-        # check to see if the next version of the work file already exists on
-        # disk. if so, warn the user and provide the ability to jump to save
-        # to that version now
-        (next_version_path, version) = self._get_next_version_info(path, item)
-        if next_version_path and os.path.exists(next_version_path):
-
-            # determine the next available version_number. just keep asking for
-            # the next one until we get one that doesn't exist.
-            while os.path.exists(next_version_path):
-                (next_version_path, version) = self._get_next_version_info(
-                    next_version_path, item)
-
-            error_msg = "The next version of this file already exists on disk."
-            self.logger.error(
-                error_msg,
-                extra={
-                    "action_button": {
-                        "label": "Save to v%s" % (version,),
-                        "tooltip": "Save to the next available version number, "
-                                   "v%s" % (version,),
-                        "callback": lambda: _save_session(next_version_path)
-                    }
-                }
-            )
+        # ensure the fields work for the publish template
+        missing_keys = publish_template.missing_keys(work_fields)
+        if missing_keys:
+            error_msg = "Work file '%s' missing keys required for the " \
+                        "publish template: %s" % (path, missing_keys)
+            self.logger.error(error_msg)
             raise Exception(error_msg)
 
-        # ---- populate the necessary properties and call base class validation
+        # create the publish path by applying the fields. store it in the item's
+        # properties. This is the path we'll create and then publish in the base
+        # publish plugin. Also set the publish_path to be explicit.
+        item.properties["path"] = publish_template.apply_fields(work_fields)
+        item.properties["publish_path"] = item.properties["path"]
+        item.properties["publish_type"] = "Maya FBX"
 
-        # populate the publish template on the item if found
-        publish_template_setting = settings.get("Publish Template")
-        publish_template = publisher.engine.get_template_by_name(
-            publish_template_setting.value)
-        if publish_template:
-            item.properties["publish_template"] = publish_template
-        else:
-            self.logger.debug("No published template configured.")
-            return False
-
-        # set the session path on the item for use by the base plugin validation
-        # step. NOTE: this path could change prior to the publish phase.
-        item.properties["path"] = path
+        # use the work file's version number when publishing
+        if "version" in work_fields:
+            item.properties["publish_version"] = work_fields["version"]
 
         # maya_path will be used for version numbering based on the Maya scene file
-        item.properties["maya_path"] = path
-        item.properties["publish_type"] = "Maya FBX"
+        # item.properties["maya_path"] = path
+        # item.properties["publish_type"] = "Maya FBX"
 
         # run the base class validation
         return super(MayaFBXPublishPlugin, self).validate(settings, item)
@@ -284,80 +228,31 @@ class MayaFBXPublishPlugin(HookBaseClass):
         :param item: Item to process
         """
 
-        # get the path in a normalized state. no trailing separator, separators
-        # are appropriate for current os, no double separators, etc.
-        path = sgtk.util.ShotgunPath.normalize(_session_path())
+        publisher = self.parent
 
-        # ensure the session is saved
-        _save_session(path)
+        # get the path to create and publish
+        publish_path = item.properties["path"]
 
-        # Derive the work path from the work template
-        work_path = _get_work_path(path, item.properties["work_template"])
-
-        # Remove the filename from the work path
-        path_components = os.path.split(work_path)
-        destination_path = path_components[0]
-        filename = path_components[1]
-
-        # Ensure that the destination path exists before rendering the sequence
-        self.parent.ensure_folder_exists(destination_path)
-
-        # Replace file extension with .fbx
-        fbx_name = os.path.splitext(filename)[0] + ".fbx"
-        fbx_output_path = os.path.join(destination_path, fbx_name)
+        # ensure the publish folder exists:
+        publish_folder = os.path.dirname(publish_path)
+        self.parent.ensure_folder_exists(publish_folder)
         
         # Export scene to FBX
         try:
-            self.logger.info("Exporting scene to FBX {}".format(fbx_output_path))
+            self.logger.info("Exporting scene to FBX {}".format(publish_path))
             cmds.FBXResetExport()
             cmds.FBXExportSmoothingGroups('-v', True)
             # Mel script equivalent: mel.eval('FBXExport -f "fbx_output_path"')
-            cmds.FBXExport('-f', fbx_output_path)
+            cmds.FBXExport('-f', publish_path)
         except:
             self.logger.error("Could not export scene to FBX")
             return False
 
         # The file to publish is the FBX exported to the FBX output path
-        item.properties["path"] = fbx_output_path
+        # item.properties["path"] = fbx_output_path
             
         # let the base class register the publish
         super(MayaFBXPublishPlugin, self).publish(settings, item)
-
-    def finalize(self, settings, item):
-        """
-        Execute the finalization pass. This pass executes once all the publish
-        tasks have completed, and can for example be used to version up files.
-
-        :param settings: Dictionary of Settings. The keys are strings, matching
-            the keys returned in the settings property. The values are `Setting`
-            instances.
-        :param item: Item to process
-        """
-
-        # do the base class finalization
-        super(MayaFBXPublishPlugin, self).finalize(settings, item)
-
-        # bump the session file to the next version
-        self._save_to_next_version(item.properties["maya_path"], item, _save_session)
-
-def _get_work_path(path, work_template):
-    """
-    Return the equivalent work path with the filename from path applied to the work template
-    :param path: An absulote path with a filename
-    :param work_template: A template to use to get the work path
-    :returns a work path:
-    """
-    # Get the filename from the path
-    filename = os.path.split(path)[1]
-    
-    # Retrieve the name field from the filename excluding the extension
-    work_path_fields = {"name" : os.path.splitext(filename)[0]}
-    
-    # Apply the name to the work template
-    work_path = work_template.apply_fields(work_path_fields)
-    work_path = os.path.normpath(work_path)
-
-    return work_path
 
 def _session_path():
     """

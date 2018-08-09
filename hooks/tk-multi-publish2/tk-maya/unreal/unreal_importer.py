@@ -1,3 +1,5 @@
+# Copyright 2018 Epic Games, Inc. 
+
 import unreal
 import os
 import sys

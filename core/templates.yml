@@ -438,13 +438,7 @@ paths:
     # The location of published maya files
     maya_asset_publish:
         definition: '@asset_root/publish/maya/{name}.v{version}.{maya_extension}'
-    # use maya_asset_work
-    # maya_scenes: "shotgun/maya_scenes/{name}[.v{version}].mb"
-    # use maya_asset_publish
-    # maya_scenes_publish: "shotgun/maya_publish/{name}[.v{version}].mb"
     # The location of FBX exports for Unreal
-    maya_asset_fbx_export: 
-        definition: '@asset_root/work/fbx/{name}.v{version}.fbx'
     maya_asset_fbx_publish:
         definition: '@asset_root/publish/fbx/{name}.v{version}.fbx'
     # The location of turntable review output rendered in Unreal
