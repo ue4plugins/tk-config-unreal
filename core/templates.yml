@@ -121,19 +121,23 @@ keys:
         default: ma
         alias: extension
 
-    # These are used by Unreal
-    sg_category_1:
+    # These are used by the Loader in Unreal
+    sg_asset_type_ue4:
         type: str
         shotgun_entity_type: Asset
-        shotgun_field_name: sg_category_1
-    sg_category_2:
+        shotgun_field_name: sg_asset_type
+    sg_asset_name:
         type: str
         shotgun_entity_type: Asset
-        shotgun_field_name: sg_category_2
-    sg_category_3:
+        shotgun_field_name: code
+    sg_shot_name:
         type: str
-        shotgun_entity_type: Asset
-        shotgun_field_name: sg_category_3
+        shotgun_entity_type: Shot
+        shotgun_field_name: code
+    sg_sequence_name:
+        type: str
+        shotgun_entity_type: Shot
+        shotgun_field_name: sg_sequence
 
 #
 # The paths section contains all the the key locations where files are to be stored
@@ -593,13 +597,12 @@ strings:
     # define how new Mari projects should be named
     mari_asset_project_name: "{mari.project_name} - Asset {asset_name}, {task_name}"
 
-    # base templates for a Shotgun asset to import into the Unreal Content Browser
-    unreal_asset_template: "/Game/Assets/{sg_asset_type}/{Asset}/"
-    unreal_asset_notype: "/Game/Assets/{Asset}/"
-    unreal_published_file: "/Game/PublishedFiles/{Asset}/"
-
-    # project-specific templates using categories to classify assets for Unreal import
-    unreal_fields_query: "{sg_asset_type} {Asset} {sg_category_1} {sg_category_2} {sg_category_3}"
-    unreal_asset_3_categories: "/Game/Assets/{sg_category_1}/{sg_category_2}/{sg_category_3}/{Asset}/"
-    unreal_asset_2_categories: "/Game/Assets/{sg_category_1}/{sg_category_2}/{Asset}/"
-    unreal_asset_1_category: "/Game/Assets/{sg_category_1}/{Asset}/"
+    # entity-specific templates for importing files into the Unreal content browser
+    # template logic is defined in Python, not settings:
+    # tk-unreal/hooks/tk-multi-loader2/tk-unreal_actions.py
+    unreal_loader_asset_path: "/Game/Assets/{sg_asset_type_ue4}/{sg_asset_name}/"
+    unreal_loader_asset_name: "{sg_asset_name}_{name}"
+    unreal_loader_shot_path: "/Game/Cinematics/Sequences/{sg_sequence_name}/{sg_shot_name}/"
+    unreal_loader_shot_name: "{sg_shot_name}_{name}"
+    unreal_loader_project_path: "/Game/Assets/"
+    unreal_loader_project_name: "{name}"
