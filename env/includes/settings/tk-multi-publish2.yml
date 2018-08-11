@@ -427,7 +427,6 @@ settings.tk-multi-publish2.unreal.project:
   - name: Render Movie and Submit for Review
     hook: "{self}/publish_file.py:{engine}/tk-multi-publish2/basic/publish_movie.py"
     settings:
-        Work Template: unreal_movie_render
         Publish Template: unreal_movie_publish
   help_url: *help_url
   location: "@apps.tk-multi-publish2.location"

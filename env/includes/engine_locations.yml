@@ -84,5 +84,5 @@ engines.tk-unreal.location:
   type: git_branch
   path: git@github.com:shotgunsoftware/tk-unreal
   branch: master
-  version: 54eeb59a34b3f08a5fd8b0f7d27ab05fa658c35b
+  version: 3d1b3407fb962b85a49b1f8970af4d305aa9ac1d
 

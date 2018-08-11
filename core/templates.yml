@@ -139,6 +139,12 @@ keys:
         shotgun_entity_type: Shot
         shotgun_field_name: sg_sequence
 
+    # These are used by the Movie Publish in Unreal
+    level_sequence:
+        type: str
+    world:
+        type: str
+
 #
 # The paths section contains all the the key locations where files are to be stored
 # by Sgtk Apps. Each path is made up of several keys (like {version} or {shot}) and
@@ -381,10 +387,8 @@ paths:
     #
 
     # level sequence review output from unreal
-    unreal_movie_render:
-        definition: 'shotgun/movie_render/{name}[.v{version}].avi'
     unreal_movie_publish:
-        definition: 'to_publish/{name}[.v{version}].avi'
+        definition: '[sequences/{Sequence}/][{Shot}/]editorial/{YYYY}_{MM}_{DD}/unreal/{level_sequence}_{world}.v{version}.avi'
 
     ##########################################################################################
     # Asset pipeline
