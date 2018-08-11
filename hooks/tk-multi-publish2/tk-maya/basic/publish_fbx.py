@@ -211,10 +211,6 @@ class MayaFBXPublishPlugin(HookBaseClass):
         if "version" in work_fields:
             item.properties["publish_version"] = work_fields["version"]
 
-        # maya_path will be used for version numbering based on the Maya scene file
-        # item.properties["maya_path"] = path
-        # item.properties["publish_type"] = "Maya FBX"
-
         # run the base class validation
         return super(MayaFBXPublishPlugin, self).validate(settings, item)
 

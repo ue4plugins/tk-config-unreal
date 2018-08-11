@@ -6,9 +6,11 @@ import os
 import maya.cmds as cmds
 import maya.mel as mel
 import pprint
+import re
 import sgtk
 import subprocess
 import sys
+import shutil
 
 HookBaseClass = sgtk.get_hook_baseclass()
 
@@ -25,7 +27,8 @@ class MayaUnrealTurntablePublishPlugin(HookBaseClass):
     """
 
     # NOTE: The plugin icon and name are defined by the base file plugin.
-
+    temp_folder = "C:/temp_unreal_shotgun/"
+    
     @property
     def description(self):
         """
@@ -176,29 +179,39 @@ class MayaUnrealTurntablePublishPlugin(HookBaseClass):
         :returns: dictionary with boolean keys accepted, required and enabled
         """
 
-        # if a publish template is configured, disable context change. This
+        accepted = True
+        publisher = self.parent
+        template_name = settings["Publish Template"].value
+
+        # ensure a work file template is available on the parent item
+        work_template = item.parent.properties.get("work_template")
+        if not work_template:
+            self.logger.debug(
+                "A work template is required for the session item in order to "
+                "publish a turntable.  Not accepting the item."
+            )
+            accepted = False
+
+        # ensure the publish template is defined and valid and that we also have
+        publish_template = publisher.get_template_by_name(template_name)
+        if not publish_template:
+            self.logger.debug(
+                "The valid publish template could not be determined for the "
+                "turntable.  Not accepting the item."
+            )
+            accepted = False
+
+        # we've validated the publish template. add it to the item properties
+        # for use in subsequent methods
+        item.properties["publish_template"] = publish_template
+
+        # because a publish template is configured, disable context change. This
         # is a temporary measure until the publisher handles context switching
         # natively.
-        if settings.get("Publish Template").value:
-            item.context_change_allowed = False
+        item.context_change_allowed = False
 
-        path = _session_path()
-
-        if not path:
-            # the session has not been saved before (no path determined).
-            # provide a save button. the session will need to be saved before
-            # validation will succeed.
-            self.logger.warn(
-                "The Maya session has not been saved.",
-                extra=_get_save_as_action()
-            )
-
-        self.logger.info(
-            "Maya '%s' plugin accepted the current Maya session." %
-            (self.name,)
-        )
         return {
-            "accepted": True,
+            "accepted": accepted,
             "checked": True
         }
 
@@ -214,19 +227,6 @@ class MayaUnrealTurntablePublishPlugin(HookBaseClass):
         :returns: True if item is valid, False otherwise.
         """
 
-        # Validate the Unreal executable and project
-        unreal_exec_path = self.get_unreal_project_path() or self._get_unreal_exec_path(settings)
-        if not unreal_exec_path or not os.path.isfile(unreal_exec_path):
-            self.logger.error("Unreal executable not found at {}".format(unreal_exec_path))
-            return False
-
-        # Use the Unreal project path override if it's defined, otherwise use the path from the settings
-        unreal_project_path = self.get_unreal_project_path() or self._get_unreal_project_path(settings)
-        if not unreal_project_path or not os.path.isfile(unreal_project_path):
-            self.logger.error("Unreal project not found at {}".format(unreal_project_path))
-            return False
-
-        publisher = self.parent
         path = _session_path()
 
         # ---- ensure the session has been saved
@@ -241,182 +241,77 @@ class MayaUnrealTurntablePublishPlugin(HookBaseClass):
             )
             raise Exception(error_msg)
 
-        # ensure we have an updated project root
-        project_root = cmds.workspace(q=True, rootDirectory=True)
-        item.properties["project_root"] = project_root
-
-        # log if no project root could be determined.
-        if not project_root:
-            self.logger.info(
-                "Your session is not part of a maya project.",
-                extra={
-                    "action_button": {
-                        "label": "Set Project",
-                        "tooltip": "Set the maya project",
-                        "callback": lambda: mel.eval('setProject ""')
-                    }
-                }
-            )
-
-        # ---- check the session against any attached work template
-
-        # get the path in a normalized state. no trailing separator,
-        # separators are appropriate for current os, no double separators,
-        # etc.
+        # get the normalized path
         path = sgtk.util.ShotgunPath.normalize(path)
 
-        # Validate the Unreal data settings
+        # get the configured work file template
+        work_template = item.parent.properties.get("work_template")
+        publish_template = item.properties.get("publish_template")
+
+        # get the current scene path and extract fields from it using the work
+        # template:
+        work_fields = work_template.get_fields(path)
+
+        # stash the current scene path in properties for use later
+        item.properties["work_path"] = path
+
+        # ensure the fields work for the publish template
+        missing_keys = publish_template.missing_keys(work_fields)
+        if missing_keys:
+            error_msg = "Work file '%s' missing keys required for the " \
+                        "publish template: %s" % (path, missing_keys)
+            self.logger.error(error_msg)
+            raise Exception(error_msg)
+
+        # Validate the Unreal executable and project, stash in properties
+        unreal_exec_path = self.get_unreal_project_path() or self._get_unreal_exec_path(settings)
+        if not unreal_exec_path or not os.path.isfile(unreal_exec_path):
+            self.logger.error("Unreal executable not found at {}".format(unreal_exec_path))
+            return False
+        item.properties["unreal_exec_path"] = unreal_exec_path
+
+        # Use the Unreal project path override if it's defined, otherwise use the path from the settings
+        # stash in properties
+        unreal_project_path = self.get_unreal_project_path() or self._get_unreal_project_path(settings)
+        if not unreal_project_path or not os.path.isfile(unreal_project_path):
+            self.logger.error("Unreal project not found at {}".format(unreal_project_path))
+            return False
+        item.properties["unreal_project_path"] = unreal_project_path
+
+        # Validate the Unreal data settings, stash in properties
         turntable_map_path_setting = settings.get("Turntable Map Path")
         turntable_map_path = turntable_map_path_setting.value if turntable_map_path_setting else None
         if not turntable_map_path:
             self.logger.debug("No Unreal turntable map configured.")
             return False
+        item.properties["turntable_map_path"] = turntable_map_path
 
+        # Validate the Unreal level sequence path, stash in properties
         sequence_path_setting = settings.get("Sequence Path")
         sequence_path = sequence_path_setting.value if sequence_path_setting else None
         if not sequence_path:
             self.logger.debug("No Unreal turntable sequence configured.")
             return False
+        item.properties["sequence_path"] = sequence_path
 
+        # Validate the Unreal content browser path, stash in properties
         unreal_content_browser_path_setting = settings.get("Turntable Assets Path")
         unreal_content_browser_path = unreal_content_browser_path_setting.value if unreal_content_browser_path_setting else None
         if not unreal_content_browser_path:
             self.logger.debug("No Unreal turntable assets output path configured.")
             return False
-            
-        # if the session item has a known work template, see if the path
-        # matches. if not, warn the user and provide a way to save the file to
-        # a different path
-        work_template_setting = settings.get("Work Template")
-        work_template = publisher.get_template_by_name(work_template_setting.value)
-        if work_template:
-            item.properties["work_template"] = work_template
-            self.logger.debug(
-                "Work template configured as {}.".format(work_template))
-        else:
-            self.logger.debug("No work template configured.")
-            return False
+        item.properties["unreal_content_browser_path"] = unreal_content_browser_path
 
-        # ---- see if the version can be bumped post-publish
+        # create the publish path by applying the fields. store it in the item's
+        # properties. This is the path we'll create and then publish in the base
+        # publish plugin. Also set the publish_path to be explicit.
+        item.properties["path"] = publish_template.apply_fields(work_fields)
+        item.properties["publish_path"] = item.properties["path"]
+        item.properties["publish_type"] = "Unreal Turntable Render"
 
-        # check to see if the next version of the work file already exists on
-        # disk. if so, warn the user and provide the ability to jump to save
-        # to that version now
-        (next_version_path, version) = self._get_next_version_info(path, item)
-        if next_version_path and os.path.exists(next_version_path):
-
-            # determine the next available version_number. just keep asking for
-            # the next one until we get one that doesn't exist.
-            while os.path.exists(next_version_path):
-                (next_version_path, version) = self._get_next_version_info(
-                    next_version_path, item)
-
-            error_msg = "The next version of this file already exists on disk."
-            self.logger.error(
-                error_msg,
-                extra={
-                    "action_button": {
-                        "label": "Save to v%s" % (version,),
-                        "tooltip": "Save to the next available version number, "
-                                   "v%s" % (version,),
-                        "callback": lambda: _save_session(next_version_path)
-                    }
-                }
-            )
-            raise Exception(error_msg)
-
-        # ---- populate the necessary properties and call base class validation
-
-        # populate the publish template on the item if found
-        publish_template_setting = settings.get("Publish Template")
-        publish_template = publisher.engine.get_template_by_name(
-            publish_template_setting.value)
-        if publish_template:
-            item.properties["publish_template"] = publish_template
-        else:
-            self.logger.debug("No published template configured.")
-            return False
-
-        # This plugin publishes a turntable movie to Shotgun
-        # These are the steps needed to do that
-
-        # =======================
-        # 1. Export the Maya scene to FBX
-        # The FBX will be exported to the current session folder, but any other destination folder could be specified instead
-        
-        # get the path in a normalized state. no trailing separator, separators
-        # are appropriate for current os, no double separators, etc.
-        path = sgtk.util.ShotgunPath.normalize(_session_path())
-
-        # ensure the session is saved
-        _save_session(path)
-
-        # Extract the filename from the work path
-        path_components = os.path.split(path)
-        destination_path = path_components[0]
-        filename = path_components[1]
-
-        # Ensure that the destination path exists before rendering the sequence
-        self.parent.ensure_folder_exists(destination_path)
-
-        # Replace file extension with .fbx and suffix it witn "_turntable"
-        asset_name = os.path.splitext(filename)[0] + "_turntable"
-        fbx_name = asset_name + ".fbx"
-        fbx_output_path = os.path.join(destination_path, fbx_name)
-        
-        # Export to FBX to given output path
-        if not self._maya_export_fbx(fbx_output_path):
-            return False
-
-        # Keep the fbx path for cleanup at finalize
-        item.properties["temp_fbx_path"] =  fbx_output_path
-        
-        # =======================
-        # 2. Import the FBX into Unreal.
-        # 3. Instantiate the imported asset into a duplicate of the turntable map.
-        # Use the unreal_setup_turntable to do this in Unreal
-
-        current_folder = os.path.dirname( __file__ )
-        script_name = "../unreal/unreal_setup_turntable.py"
-        script_path = os.path.join(current_folder, script_name)
-        script_path = os.path.abspath(script_path)
-
-        script_args = []
-        
-        # The FBX to import into Unreal
-        script_args.append(fbx_output_path)
-        
-        # The Unreal content browser folder where the asset will be imported into
-        script_args.append(unreal_content_browser_path)
-
-        # The Unreal turntable map to duplicate where the asset will be instantiated into
-        script_args.append(turntable_map_path)
-
-        self._unreal_execute_script(unreal_exec_path, unreal_project_path, script_path, script_args)
-        
-        # =======================
-        # 4. Render the turntable to movie.
-        # Output the movie to the work path
-        work_path_fields = {"name" : asset_name}
-        work_path = work_template.apply_fields(work_path_fields)
-        work_path = os.path.normpath(work_path)
-
-        # Remove the filename from the work path
-        destination_path = os.path.split(work_path)[0]
-
-        # Ensure that the destination path exists before rendering the sequence
-        self.parent.ensure_folder_exists(destination_path)
-
-        success, output_filepath = self._unreal_render_sequence_to_movie(unreal_exec_path, unreal_project_path, turntable_map_path, sequence_path, destination_path, asset_name)
-        
-        if not success:
-            return False
-
-        item.properties["path"] = output_filepath.replace("/", "\\")
-        item.properties["publish_name"] = asset_name
-        
-        # run the base class validation
-        # return super(MayaUnrealTurntablePublishPlugin, self).validate(settings, item)
+        # use the work file's version number when publishing
+        if "version" in work_fields:
+            item.properties["publish_version"] = work_fields["version"]
         
         return True
 
@@ -430,7 +325,108 @@ class MayaUnrealTurntablePublishPlugin(HookBaseClass):
         :param item: Item to process
         """
 
-        # Publish the turntable movie file to Shotgun
+        # Get the Unreal settings again
+        unreal_exec_path = item.properties["unreal_exec_path"]
+        unreal_project_path = item.properties["unreal_project_path"]
+        turntable_map_path = item.properties["turntable_map_path"]
+        sequence_path = item.properties["sequence_path"]
+        unreal_content_browser_path = item.properties["unreal_content_browser_path"]
+
+        # This plugin publishes a turntable movie to Shotgun
+        # These are the steps needed to do that
+
+        # =======================
+        # 1. Export the Maya scene to FBX
+        # The FBX will be exported to the current work folder, but any other
+        # destination folder could be specified instead
+        work_path = item.properties.get("work_path")
+        work_path = os.path.normpath(work_path)
+
+        # Split the destination path into folder and filename
+        fbx_folder = os.path.split(work_path)[0]
+        work_name = os.path.split(work_path)[1]
+        work_name = os.path.splitext(work_name)[0]
+
+        # Replace non-word characters in filename, Unreal doesn't like those
+        # Substitute '_' instead
+        exp = re.compile(u"\W", re.UNICODE)
+        work_name = exp.sub("_", work_name)
+
+        # Replace file extension with .fbx and suffix it with "_turntable"
+        fbx_name = work_name + "_turntable.fbx"
+        fbx_output_path = os.path.join(fbx_folder, fbx_name)
+        
+        # Export the FBX to the given output path
+        if not self._maya_export_fbx(fbx_output_path):
+            return False
+
+        # Keep the fbx path for cleanup at finalize
+        item.properties["temp_fbx_path"] = fbx_output_path
+        
+        # =======================
+        # 2. Import the FBX into Unreal.
+        # 3. Instantiate the imported asset into a duplicate of the turntable map.
+        # Use the unreal_setup_turntable to do this in Unreal
+
+        current_folder = os.path.dirname( __file__ )
+        script_name = "../unreal/unreal_setup_turntable.py"
+        script_path = os.path.join(current_folder, script_name)
+        script_path = os.path.abspath(script_path)
+
+        # Workaround for script path with spaces in it
+        do_temp_folder_cleanup = False
+        if " " in script_path:
+            # Make temporary copies of the scripts to a path without spaces
+            self.parent.ensure_folder_exists(self.temp_folder)
+
+            script_destination = self.temp_folder + "unreal_setup_turntable.py"
+            shutil.copy(script_path, script_destination)
+            script_path = script_destination
+
+            importer_path = os.path.join(current_folder, "../unreal/unreal_importer.py")
+            importer_path = os.path.abspath(importer_path)
+            importer_destination = self.temp_folder + "unreal_importer.py"
+            shutil.copy(importer_path, importer_destination)
+
+            do_temp_folder_cleanup = True
+
+        if " " in unreal_project_path:
+            unreal_project_path = '"{}"'.format(unreal_project_path)
+            
+        script_args = []
+        
+        # The FBX to import into Unreal
+        script_args.append(fbx_output_path)
+        
+        # The Unreal content browser folder where the asset will be imported into
+        script_args.append(unreal_content_browser_path)
+
+        # The Unreal turntable map to duplicate where the asset will be instantiated into
+        script_args.append(turntable_map_path)
+
+        self._unreal_execute_script(unreal_exec_path, unreal_project_path, script_path, script_args)
+        
+        if do_temp_folder_cleanup:
+            shutil.rmtree(self.temp_folder)
+            
+        # =======================
+        # 4. Render the turntable to movie.
+        # Output the movie to the publish path
+        publish_path = item.properties.get("path")
+        publish_path = os.path.normpath(publish_path)
+
+        # Split the destination path into folder and filename
+        destination_folder = os.path.split(publish_path)[0]
+        movie_name = os.path.split(publish_path)[1]
+        movie_name = os.path.splitext(movie_name)[0]
+
+        # Ensure that the destination path exists before rendering the sequence
+        self.parent.ensure_folder_exists(destination_folder)
+
+        # Render the turntable
+        self._unreal_render_sequence_to_movie(unreal_exec_path, unreal_project_path, turntable_map_path, sequence_path, destination_folder, movie_name)
+        
+        # Publish the movie file to Shotgun
         super(MayaUnrealTurntablePublishPlugin, self).publish(settings, item)
         
         # Create a Version entry linked with the new publish
@@ -440,9 +436,10 @@ class MayaUnrealTurntablePublishPlugin(HookBaseClass):
         self.logger.info("Creating Version...")
         version_data = {
             "project": item.context.project,
-            "code": publish_name,
+            "code": movie_name,
             "description": item.description,
             "entity": self._get_version_entity(item),
+            "sg_path_to_movie": publish_path,
             "sg_task": item.context.task
         }
 
@@ -546,6 +543,8 @@ class MayaUnrealTurntablePublishPlugin(HookBaseClass):
         command_args.append('-ExecutePythonScript="{} {}"'.format(script_path, " ".join(script_args)))
         self.logger.info("Executing script in Unreal with arguments: {}".format(command_args))
         
+        print "COMMAND ARGS: %s" % (command_args)
+
         subprocess.call(" ".join(command_args))
 
     def _unreal_render_sequence_to_movie(self, unreal_exec_path, unreal_project_path, unreal_map_path, sequence_path, destination_path, movie_name):

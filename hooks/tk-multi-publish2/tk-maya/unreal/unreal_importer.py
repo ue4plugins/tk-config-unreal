@@ -41,7 +41,8 @@ def _generate_fbx_import_task(filename, destination_path, destination_name=None,
     task.options.import_materials = materials
     task.options.import_textures = textures
     task.options.import_as_skeletal = as_skeletal
-    # task.options.static_mesh_import_data.combine_meshes = True
+    
+    task.options.static_mesh_import_data.combine_meshes = True
 
     task.options.mesh_type_to_import = unreal.FBXImportType.FBXIT_STATIC_MESH
     if as_skeletal:

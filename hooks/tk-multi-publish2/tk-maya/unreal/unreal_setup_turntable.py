@@ -55,11 +55,12 @@ def main(argv):
     actor = unreal.EditorLevelLibrary.spawn_actor_from_object(asset, unreal.Vector.ZERO_VECTOR)
     
     # Scale the actor to fit the frame, which is dependent on the settings of the camera used in the turntable sequence
-    # The scale values must be tweaked if the camera settings change
+    # The scale values are based on a volume that fits safely in the frustum of the camera and account for the frame ratio
+    # and must be tweaked if the camera settings change
     origin, bounds = actor.get_actor_bounds(True)
-    scale_x = 400 / bounds.x
-    scale_y = 400 / bounds.y
-    scale_z = 100 / bounds.z
+    scale_x = 250 / min(bounds.x, bounds.y)
+    scale_y = 300 / max(bounds.x, bounds.y)
+    scale_z = 200 / bounds.z
     scale = min(scale_x, scale_y, scale_z)
     actor.set_actor_scale3d(unreal.Vector(scale, scale, scale))
     
