@@ -389,6 +389,8 @@ paths:
     # level sequence review output from unreal
     unreal_movie_publish:
         definition: '[sequences/{Sequence}/][{Shot}/]editorial/{YYYY}_{MM}_{DD}/unreal/{level_sequence}_{world}.v{version}.avi'
+    unreal_shot_publish:
+        definition: '@shot_root/publish/unreal/{name}.v{version}.nk'
 
     ##########################################################################################
     # Asset pipeline
@@ -453,7 +455,7 @@ paths:
     maya_ue4_turntable_render:
         definition: '@asset_root/work/images/{name}_turntable_v{version}.avi'
     maya_ue4_turntable_publish:
-        definition: '@asset_root/review/{name}_turntable_v{version}.avi'
+        definition: '@asset_root/review/{Asset}_{name}_turntable_v{version}.avi'
 
 
     #
@@ -571,11 +573,11 @@ paths:
     # Unreal
     #
 
-    # static mesh export from unreal
-    unreal_asset_fbx_export:
-        definition: 'shotgun/fbx_export/{name}.fbx'
+    # Placeholder location for static mesh assets exported from Unreal
+    # Hook implementation intended to be a starting point for a pipeline
+    # No context info used in template, developers expected to further customize
     unreal_asset_publish:
-        definition: 'to_publish/{name}.fbx'
+        definition: 'assets/unrealdemo/exports/{YYYY}_{MM}_{DD}/{name}.fbx'
 
 
 #

@@ -11,6 +11,7 @@ import sgtk
 import subprocess
 import sys
 import shutil
+import datetime
 
 HookBaseClass = sgtk.get_hook_baseclass()
 
@@ -337,23 +338,29 @@ class MayaUnrealTurntablePublishPlugin(HookBaseClass):
 
         # =======================
         # 1. Export the Maya scene to FBX
-        # The FBX will be exported to the current work folder, but any other
-        # destination folder could be specified instead
+        # The FBX will be exported to a temp folder
+        # Another folder can be specified as long as the name has no spaces
+        # Spaces are not allowed in command line Unreal Python args
+        self.parent.ensure_folder_exists(self.temp_folder)
+        fbx_folder = self.temp_folder
+
+        # Get the filename from the work file
         work_path = item.properties.get("work_path")
         work_path = os.path.normpath(work_path)
-
-        # Split the destination path into folder and filename
-        fbx_folder = os.path.split(work_path)[0]
         work_name = os.path.split(work_path)[1]
-        work_name = os.path.splitext(work_name)[0]
+        work_name = os.path.splitext(work_name)[0]        
 
         # Replace non-word characters in filename, Unreal doesn't like those
         # Substitute '_' instead
         exp = re.compile(u"\W", re.UNICODE)
         work_name = exp.sub("_", work_name)
 
+        # Use current time as string as a unique identifier
+        now = datetime.datetime.now()
+        timestamp = str(now.hour) + str(now.minute) + str(now.second)
+
         # Replace file extension with .fbx and suffix it with "_turntable"
-        fbx_name = work_name + "_turntable.fbx"
+        fbx_name = work_name + "_" + timestamp + "_turntable.fbx"
         fbx_output_path = os.path.join(fbx_folder, fbx_name)
         
         # Export the FBX to the given output path
@@ -374,11 +381,8 @@ class MayaUnrealTurntablePublishPlugin(HookBaseClass):
         script_path = os.path.abspath(script_path)
 
         # Workaround for script path with spaces in it
-        do_temp_folder_cleanup = False
         if " " in script_path:
             # Make temporary copies of the scripts to a path without spaces
-            self.parent.ensure_folder_exists(self.temp_folder)
-
             script_destination = self.temp_folder + "unreal_setup_turntable.py"
             shutil.copy(script_path, script_destination)
             script_path = script_destination
@@ -405,9 +409,6 @@ class MayaUnrealTurntablePublishPlugin(HookBaseClass):
         script_args.append(turntable_map_path)
 
         self._unreal_execute_script(unreal_exec_path, unreal_project_path, script_path, script_args)
-        
-        if do_temp_folder_cleanup:
-            shutil.rmtree(self.temp_folder)
             
         # =======================
         # 4. Render the turntable to movie.
@@ -502,13 +503,16 @@ class MayaUnrealTurntablePublishPlugin(HookBaseClass):
         # bump the session file to the next version
         # self._save_to_next_version(item.properties["maya_path"], item, _save_session)
         
-        # Delete the exported FBX
-        fbx_path = item.properties.get("temp_fbx_path")
-        if fbx_path:
-            try:
-                os.remove(fbx_path)
-            except:
-                pass
+        # Delete the exported FBX and scripts from the temp folder
+        shutil.rmtree(self.temp_folder)
+
+        # Revive this when Unreal supports spaces in command line Python args
+        # fbx_path = item.properties.get("temp_fbx_path")
+        # if fbx_path:
+        #     try:
+        #         os.remove(fbx_path)
+        #     except:
+        #         pass
 
     def _get_version_entity(self, item):
         """
