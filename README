@@ -1,10 +1,16 @@
 -------------------------------------------------------------------------
-The Shotgun Pipeline Toolkit Default Configuration
+Configuration for running Shotgun with the Unreal Engine
 -------------------------------------------------------------------------
 
-Welcome to the Shotgun Pipeline Toolkit default configuration! 
+This Toolkit configuration was forked from tk-config-default2 and updates
+from that configuration are regularly merged in.
 
-For more information, go to the following url:
-https://support.shotgunsoftware.com/hc/en-us/articles/115000067493-Integrations-Admin-Guide
+This configuration extends the tk-config-default2 configuration with an 
+Unreal engine as well as several unreal related options in Maya.
+
+For more information how to use the unreal engine, please see the support
+documentation:
+
+https://docs.unrealengine.com/en-us/Editor/Content/Using-Unreal-Engine-with-Autodesk-Shotgun
 
 -------------------------------------------------------------------------
