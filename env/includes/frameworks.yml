@@ -58,7 +58,6 @@ frameworks:
   # unrealqt - PySide build for Unreal (Windows-only)
   tk-framework-unrealqt_v1.x.x:
     location:
-      type: git_branch
-      path: git@github.com:shotgunsoftware/tk-framework-unrealqt
-      branch: master
+      type: git
+      path: https://github.com/shotgunsoftware/tk-framework-unrealqt
       version: d21ff6124a901ce018ab639cbefe8bfc67115a79
