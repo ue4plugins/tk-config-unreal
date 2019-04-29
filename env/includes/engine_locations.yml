@@ -17,7 +17,7 @@
 engines.tk-3dsmaxplus.location:
   type: app_store
   name: tk-3dsmaxplus
-  version: v0.5.3
+  version: v0.5.6
 
 # Desktop
 engines.tk-desktop.location:
@@ -35,31 +35,31 @@ engines.tk-flame.location:
 engines.tk-houdini.location:
   type: app_store
   name: tk-houdini
-  version: v1.5.6
+  version: v1.6.1
 
 # Mari
 engines.tk-mari.location:
   type: app_store
   name: tk-mari
-  version: v1.2.0
+  version: v1.2.2
 
 # Maya
 engines.tk-maya.location:
   type: app_store
   name: tk-maya
-  version: v0.9.3
+  version: v0.9.7
 
 # Motion Builder
 engines.tk-motionbuilder.location:
   type: app_store
   name: tk-motionbuilder
-  version: v0.4.2
+  version: v0.5.0
 
 # Nuke
 engines.tk-nuke.location:
   type: app_store
   name: tk-nuke
-  version: v0.11.1
+  version: v0.12.0
 
 # Photoshop
 engines.tk-photoshopcc.location:
@@ -81,6 +81,7 @@ engines.tk-shotgun.location:
 
 # Unreal
 engines.tk-unreal.location:
-  type: git
-  path: https://github.com/ue4plugins/tk-unreal.git
+  type: github_release
+  organization: ue4plugins
+  repository: tk-unreal
   version: v1.0.0

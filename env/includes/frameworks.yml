@@ -17,21 +17,21 @@ frameworks:
   # adminui - provides GUIs for administrative commands
   tk-framework-adminui_v0.x.x:
     location:
-      version: v0.3.2
+      version: v0.5.2
       type: app_store
       name: tk-framework-adminui
 
   # desktopserver - provides a server to run local commands.
   tk-framework-desktopserver_v1.x.x:
     location:
-      version: v1.3.3
+      version: v1.3.7
       type: app_store
       name: tk-framework-desktopserver
 
   # qtwidgets - collection of Toolkit related QT Widgets
   tk-framework-qtwidgets_v2.x.x:
     location:
-      version: v2.8.1
+      version: v2.8.3
       type: app_store
       name: tk-framework-qtwidgets
   # shotgunutils v4 - Shotgun Related Utilities
@@ -44,7 +44,7 @@ frameworks:
   # shotgunutils v5 - Shotgun Related Utilities
   tk-framework-shotgunutils_v5.x.x:
     location:
-      version: v5.4.5
+      version: v5.6.1
       type: app_store
       name: tk-framework-shotgunutils
 
@@ -58,6 +58,7 @@ frameworks:
   # unrealqt - PySide build for Unreal (Windows-only)
   tk-framework-unrealqt_v1.x.x:
     location:
-      type: git
-      path: https://github.com/ue4plugins/tk-framework-unrealqt.git
+      type: github_release
+      organization: ue4plugins
+      repository: tk-framework-unrealqt
       version: v1.0.0
