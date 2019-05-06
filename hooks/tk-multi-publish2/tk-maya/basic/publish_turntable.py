@@ -397,19 +397,22 @@ class MayaUnrealTurntablePublishPlugin(HookBaseClass):
         if " " in unreal_project_path:
             unreal_project_path = '"{}"'.format(unreal_project_path)
             
-        script_args = []
-        
+        # Set the script arguments in the environment variables            
         # The FBX to import into Unreal
-        script_args.append(fbx_output_path)
-        
+        os.environ['UNREAL_SG_FBX_OUTPUT_PATH'] = fbx_output_path
+
         # The Unreal content browser folder where the asset will be imported into
-        script_args.append(unreal_content_browser_path)
+        os.environ['UNREAL_SG_CONTENT_BROWSER_PATH'] = unreal_content_browser_path
 
         # The Unreal turntable map to duplicate where the asset will be instantiated into
-        script_args.append(turntable_map_path)
+        os.environ['UNREAL_SG_MAP_PATH'] = turntable_map_path
 
-        self._unreal_execute_script(unreal_exec_path, unreal_project_path, script_path, script_args)
-            
+        self._unreal_execute_script(unreal_exec_path, unreal_project_path, script_path)
+
+        del os.environ['UNREAL_SG_FBX_OUTPUT_PATH']
+        del os.environ['UNREAL_SG_CONTENT_BROWSER_PATH']
+        del os.environ['UNREAL_SG_MAP_PATH']
+
         # =======================
         # 4. Render the turntable to movie.
         # Output the movie to the publish path
@@ -539,12 +542,12 @@ class MayaUnrealTurntablePublishPlugin(HookBaseClass):
             
         return True
         
-    def _unreal_execute_script(self, unreal_exec_path, unreal_project_path, script_path, script_args):
+    def _unreal_execute_script(self, unreal_exec_path, unreal_project_path, script_path):
         command_args = []
         command_args.append(unreal_exec_path)       # Unreal executable path
         command_args.append(unreal_project_path)    # Unreal project
         
-        command_args.append('-ExecutePythonScript="{} {}"'.format(script_path, " ".join(script_args)))
+        command_args.append('-ExecutePythonScript="{}"'.format(script_path))
         self.logger.info("Executing script in Unreal with arguments: {}".format(command_args))
         
         print "COMMAND ARGS: %s" % (command_args)
