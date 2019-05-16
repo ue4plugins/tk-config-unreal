@@ -15,6 +15,11 @@ import datetime
 
 HookBaseClass = sgtk.get_hook_baseclass()
 
+# Environment variables for turntable script
+OUTPUT_PATH_ENVVAR = 'UNREAL_SG_FBX_OUTPUT_PATH'
+CONTENT_BROWSER_PATH_ENVVAR = 'UNREAL_SG_CONTENT_BROWSER_PATH'
+MAP_PATH_ENVVAR = 'UNREAL_SG_MAP_PATH'
+
 class MayaUnrealTurntablePublishPlugin(HookBaseClass):
     """
     Plugin for publishing an open maya session as an exported FBX.
@@ -399,19 +404,22 @@ class MayaUnrealTurntablePublishPlugin(HookBaseClass):
             
         # Set the script arguments in the environment variables            
         # The FBX to import into Unreal
-        os.environ['UNREAL_SG_FBX_OUTPUT_PATH'] = fbx_output_path
+        os.environ[OUTPUT_PATH_ENVVAR] = fbx_output_path
+        self.logger.info("Setting environment variable {} to {}".format(OUTPUT_PATH_ENVVAR, fbx_output_path))
 
         # The Unreal content browser folder where the asset will be imported into
-        os.environ['UNREAL_SG_CONTENT_BROWSER_PATH'] = unreal_content_browser_path
+        os.environ[CONTENT_BROWSER_PATH_ENVVAR] = unreal_content_browser_path
+        self.logger.info("Setting environment variable {} to {}".format(CONTENT_BROWSER_PATH_ENVVAR, unreal_content_browser_path))
 
         # The Unreal turntable map to duplicate where the asset will be instantiated into
-        os.environ['UNREAL_SG_MAP_PATH'] = turntable_map_path
+        os.environ[MAP_PATH_ENVVAR] = turntable_map_path
+        self.logger.info("Setting environment variable {} to {}".format(MAP_PATH_ENVVAR, turntable_map_path))
 
         self._unreal_execute_script(unreal_exec_path, unreal_project_path, script_path)
 
-        del os.environ['UNREAL_SG_FBX_OUTPUT_PATH']
-        del os.environ['UNREAL_SG_CONTENT_BROWSER_PATH']
-        del os.environ['UNREAL_SG_MAP_PATH']
+        del os.environ[OUTPUT_PATH_ENVVAR]
+        del os.environ[CONTENT_BROWSER_PATH_ENVVAR]
+        del os.environ[MAP_PATH_ENVVAR]
 
         # =======================
         # 4. Render the turntable to movie.
