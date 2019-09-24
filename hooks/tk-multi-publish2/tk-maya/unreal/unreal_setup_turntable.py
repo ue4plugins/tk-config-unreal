@@ -31,7 +31,7 @@ def main(argv):
     turntable_actor = None
     level_actors = unreal.EditorLevelLibrary.get_all_level_actors()
     for level_actor in level_actors:
-        if level_actor.get_name() == "turntable":
+        if level_actor.get_actor_label() == "turntable":
             turntable_actor = level_actor
             break
             
@@ -52,7 +52,7 @@ def main(argv):
     if not asset:
         return
         
-    actor = unreal.EditorLevelLibrary.spawn_actor_from_object(asset, unreal.Vector.ZERO_VECTOR)
+    actor = unreal.EditorLevelLibrary.spawn_actor_from_object(asset, unreal.Vector(0, 0, 0))
     
     # Scale the actor to fit the frame, which is dependent on the settings of the camera used in the turntable sequence
     # The scale values are based on a volume that fits safely in the frustum of the camera and account for the frame ratio
@@ -78,4 +78,16 @@ if __name__ == "__main__":
     # Path to FBX to import
     # Unreal content browser path where to store the imported asset
     # Unreal content browser path to the turntable map to duplicate and where to spawn the asset
-    main(sys.argv[1:])
+    argv = []
+
+    if 'UNREAL_SG_FBX_OUTPUT_PATH' in os.environ:
+        argv.append(os.environ['UNREAL_SG_FBX_OUTPUT_PATH'])
+
+    if 'UNREAL_SG_CONTENT_BROWSER_PATH' in os.environ:
+        argv.append(os.environ['UNREAL_SG_CONTENT_BROWSER_PATH'])
+
+    if 'UNREAL_SG_MAP_PATH' in os.environ:
+        argv.append(os.environ['UNREAL_SG_MAP_PATH'])
+
+    if len(argv) == 3:
+        main(argv)

@@ -15,6 +15,11 @@ import datetime
 
 HookBaseClass = sgtk.get_hook_baseclass()
 
+# Environment variables for turntable script
+OUTPUT_PATH_ENVVAR = 'UNREAL_SG_FBX_OUTPUT_PATH'
+CONTENT_BROWSER_PATH_ENVVAR = 'UNREAL_SG_CONTENT_BROWSER_PATH'
+MAP_PATH_ENVVAR = 'UNREAL_SG_MAP_PATH'
+
 class MayaUnrealTurntablePublishPlugin(HookBaseClass):
     """
     Plugin for publishing an open maya session as an exported FBX.
@@ -397,19 +402,25 @@ class MayaUnrealTurntablePublishPlugin(HookBaseClass):
         if " " in unreal_project_path:
             unreal_project_path = '"{}"'.format(unreal_project_path)
             
-        script_args = []
-        
+        # Set the script arguments in the environment variables            
         # The FBX to import into Unreal
-        script_args.append(fbx_output_path)
-        
+        os.environ[OUTPUT_PATH_ENVVAR] = fbx_output_path
+        self.logger.info("Setting environment variable {} to {}".format(OUTPUT_PATH_ENVVAR, fbx_output_path))
+
         # The Unreal content browser folder where the asset will be imported into
-        script_args.append(unreal_content_browser_path)
+        os.environ[CONTENT_BROWSER_PATH_ENVVAR] = unreal_content_browser_path
+        self.logger.info("Setting environment variable {} to {}".format(CONTENT_BROWSER_PATH_ENVVAR, unreal_content_browser_path))
 
         # The Unreal turntable map to duplicate where the asset will be instantiated into
-        script_args.append(turntable_map_path)
+        os.environ[MAP_PATH_ENVVAR] = turntable_map_path
+        self.logger.info("Setting environment variable {} to {}".format(MAP_PATH_ENVVAR, turntable_map_path))
 
-        self._unreal_execute_script(unreal_exec_path, unreal_project_path, script_path, script_args)
-            
+        self._unreal_execute_script(unreal_exec_path, unreal_project_path, script_path)
+
+        del os.environ[OUTPUT_PATH_ENVVAR]
+        del os.environ[CONTENT_BROWSER_PATH_ENVVAR]
+        del os.environ[MAP_PATH_ENVVAR]
+
         # =======================
         # 4. Render the turntable to movie.
         # Output the movie to the publish path
@@ -539,12 +550,12 @@ class MayaUnrealTurntablePublishPlugin(HookBaseClass):
             
         return True
         
-    def _unreal_execute_script(self, unreal_exec_path, unreal_project_path, script_path, script_args):
+    def _unreal_execute_script(self, unreal_exec_path, unreal_project_path, script_path):
         command_args = []
         command_args.append(unreal_exec_path)       # Unreal executable path
         command_args.append(unreal_project_path)    # Unreal project
         
-        command_args.append('-ExecutePythonScript="{} {}"'.format(script_path, " ".join(script_args)))
+        command_args.append('-ExecutePythonScript="{}"'.format(script_path))
         self.logger.info("Executing script in Unreal with arguments: {}".format(command_args))
         
         print "COMMAND ARGS: %s" % (command_args)
