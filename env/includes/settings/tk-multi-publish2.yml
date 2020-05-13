@@ -186,7 +186,7 @@ settings.tk-multi-publish2.maya.asset_step:
     settings:
         Work Template: maya_ue4_turntable_render
         Publish Template: maya_ue4_turntable_publish
-        Unreal Engine Version: "4.23"
+        Unreal Engine Version: "4.25"
         Unreal Project Path: "{config}/tk-multi-publish2/tk-maya/unreal/resources/{unreal_engine_version}/turntable/turntable.uproject"
         Turntable Map Path: "/Game/turntable/level/turntable.umap"
         Sequence Path: "/Game/turntable/sequence/turntable_sequence.turntable_sequence"
