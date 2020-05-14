@@ -84,4 +84,4 @@ engines.tk-unreal.location:
   type: git_branch
   branch: dev
   path: https://github.com/ue4plugins/tk-unreal.git
-  version: 9fa3cdc
+  version: b416c12
