@@ -84,4 +84,4 @@ engines.tk-unreal.location:
   type: github_release
   organization: ue4plugins
   repository: tk-unreal
-  version: v1.0.0
+  version: v1.0.1
