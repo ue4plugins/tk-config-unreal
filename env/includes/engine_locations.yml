@@ -23,7 +23,7 @@ engines.tk-3dsmaxplus.location:
 engines.tk-desktop.location:
   type: app_store
   name: tk-desktop
-  version: v2.4.12
+  version: v2.5.9
 
 # Flame
 engines.tk-flame.location:
@@ -84,4 +84,4 @@ engines.tk-unreal.location:
   type: git_branch
   branch: dev
   path: https://github.com/ue4plugins/tk-unreal.git
-  version: b416c12
+  version: 6863ca4
