@@ -17,71 +17,77 @@
 engines.tk-3dsmaxplus.location:
   type: app_store
   name: tk-3dsmaxplus
-  version: v0.5.6
+  version: v0.5.11
 
 # Desktop
 engines.tk-desktop.location:
   type: app_store
   name: tk-desktop
-  version: v2.4.12
+  version: v2.5.11
+
+# Desktop2
+common.engines.tk-desktop2.location:
+  type: app_store
+  name: tk-desktop2
+  version: v1.4.3
 
 # Flame
 engines.tk-flame.location:
   type: app_store
   name: tk-flame
-  version: v1.13.4
+  version: v1.15.6
 
 # Houdini
 engines.tk-houdini.location:
   type: app_store
   name: tk-houdini
-  version: v1.6.1
+  version: v1.7.2
 
 # Mari
 engines.tk-mari.location:
   type: app_store
   name: tk-mari
-  version: v1.2.2
+  version: v1.2.4
 
 # Maya
 engines.tk-maya.location:
   type: app_store
   name: tk-maya
-  version: v0.9.7
+  version: v0.10.2
 
 # Motion Builder
 engines.tk-motionbuilder.location:
   type: app_store
   name: tk-motionbuilder
-  version: v0.5.0
+  version: v0.5.2
 
 # Nuke
 engines.tk-nuke.location:
   type: app_store
   name: tk-nuke
-  version: v0.12.0
+  version: v0.12.10
 
 # Photoshop
 engines.tk-photoshopcc.location:
   type: app_store
   name: tk-photoshopcc
-  version: v1.6.2
+  version: v1.8.2
 
 # Shell
 engines.tk-shell.location:
   type: app_store
   name: tk-shell
-  version: v0.6.0
+  version: v0.8.1
 
 # Shotgun
 engines.tk-shotgun.location:
   type: app_store
   name: tk-shotgun
-  version: v0.8.2
+  version: v0.9.0
 
 # Unreal
 engines.tk-unreal.location:
   type: github_release
   organization: ue4plugins
   repository: tk-unreal
-  version: v1.0.1
+  version: v1.1.0
