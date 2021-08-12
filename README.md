@@ -1,3 +1,5 @@
+[![Build Status](https://dev.azure.com/shotgun-ecosystem/Toolkit/_apis/build/status/Configs/tk-config-default2?branchName=master)](https://dev.azure.com/shotgun-ecosystem/Toolkit/_build/latest?definitionId=49&branchName=master)
+
 -------------------------------------------------------------------------
 Configuration for running Shotgun with the Unreal Engine
 -------------------------------------------------------------------------

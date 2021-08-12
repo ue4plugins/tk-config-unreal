@@ -41,7 +41,7 @@
 # core, this requirement has been lifted and the root can be named anything.
 # ------------------------------------------------------------------------------
 
-primary:
+Unreal_tests:
 
     description: A top-level root folder for production data. Project folders
         will be created beneath this location.
@@ -67,4 +67,3 @@ primary:
 #     description: "High performance storage for fast/frequent texture access"
 #     shotgun_storage_id: 2
 #
-
