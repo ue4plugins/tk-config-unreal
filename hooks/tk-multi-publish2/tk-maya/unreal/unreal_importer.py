@@ -15,15 +15,23 @@ def _sanitize_name(name):
     # Replace any remaining '.' with '_' since they are not allowed in Unreal asset names
     return name_no_version.replace('.', '_')
 
-def _generate_fbx_import_task(filename, destination_path, destination_name=None, replace_existing=True,
-                             automated=True, save=True, materials=True,
-                             textures=True, as_skeletal=False):
+def _generate_fbx_import_task(
+    filename,
+    destination_path,
+    destination_name=None,
+    replace_existing=True,
+    automated=True,
+    save=True,
+    materials=True,
+    textures=True,
+    as_skeletal=False
+):
     """
     Create and configure an Unreal AssetImportTask
 
-    :param filename: The fbx file to import
-    :param destination_path: The Content Browser path where the asset will be placed
-    :return the configured AssetImportTask
+    :param filename: The fbx file to import,
+    :param destination_path: The Content Browser path where the asset will be placed.
+    :returns: The configured AssetImportTask.
     """
     task = unreal.AssetImportTask()
     task.filename = filename
@@ -50,11 +58,18 @@ def _generate_fbx_import_task(filename, destination_path, destination_name=None,
 
     return task
 
-def main(argv):
-    tasks = []
-    tasks.append(_generate_fbx_import_task(*argv))
+def import_fbx(filename, destination_path):
+    """
+    Import the given FBX file under the given path.
+    :param filename: The fbx file to import,
+    :param destination_path: The Content Browser path where the asset will be placed.
+    """
+    tasks = [_generate_fbx_import_task(filename, destination_path)]
     unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks(tasks)
     unreal.EditorLoadingAndSavingUtils.save_dirty_packages(False, True)
+
+def main(argv):
+    import_fbx(*argv)
 
 if __name__ == "__main__":
     # Script arguments must be, in order:

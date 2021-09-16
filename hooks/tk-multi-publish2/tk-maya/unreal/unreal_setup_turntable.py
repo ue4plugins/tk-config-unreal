@@ -6,27 +6,87 @@ import unreal
 import os
 import sys
 
-def main(argv):
+
+def setup_render_with_movie_render_queue(output_path, unreal_map_path, sequence_path):
+    """
+    Setup rendering the given map and sequence to the given movie with the Movie render queue.
+
+    :param str output_path: Full path to the movie to render.
+    :param str unreal_map_path: Unreal map path.
+    :param str sequence_path: Unreal level sequence path.
+    :returns: Full path to a manifest file to use for rendering or None if rendering
+              with the Movie Render queue is not possible.
+    """
+    # Check if we can use the Movie render queue, bail out if we can't
+    if "MoviePipelineQueueEngineSubsystem" not in dir(unreal):
+        unreal.log(
+            "Movie Render Queue is not available, Movie queue rendering can't be setup."
+        )
+        return None
+    if "MoviePipelineAppleProResOutput" not in dir(unreal):
+        unreal.log(
+            "Apple ProRes Media plugin must be loaded to be able to render with the Movie Render Queue, "
+            "Movie queue rendering can't be setup."
+        )
+        return None
+
+    unreal.log("Setting rendering %s %s to %s..." % (unreal_map_path, sequence_path, output_path))
+    output_folder, output_file = os.path.split(output_path)
+    movie_name = os.path.splitext(output_file)[0]
+
+    qsub = unreal.MoviePipelineQueueEngineSubsystem()
+    queue = qsub.get_queue()
+    job = queue.allocate_new_job(unreal.MoviePipelineExecutorJob)
+    job.sequence = unreal.SoftObjectPath(sequence_path)
+    job.map =  unreal.SoftObjectPath(unreal_map_path)
+    # Set settings
+    config = job.get_configuration()
+    output_setting = config.find_or_add_setting_by_class(unreal.MoviePipelineOutputSetting)
+    # https://docs.unrealengine.com/4.26/en-US/PythonAPI/class/MoviePipelineOutputSetting.html?highlight=setting#unreal.MoviePipelineOutputSetting
+    output_setting.output_directory =  unreal.DirectoryPath(output_folder)
+    output_setting.output_resolution = unreal.IntPoint(1280, 720)
+    output_setting.file_name_format = movie_name
+    output_setting.override_existing_output = True  # Overwrite existing files
+    # Render to a movie
+    mov_setting = config.find_or_add_setting_by_class(unreal.MoviePipelineAppleProResOutput)
+    # TODO: check which codec we should use.
+    # Default rendering
+    render_pass = config.find_or_add_setting_by_class(unreal.MoviePipelineDeferredPassBase)
+    # Additional pass with detailed lighting?
+    # render_pass = config.find_or_add_setting_by_class(unreal.MoviePipelineDeferredPass_DetailLighting)
+    _, manifest_path = unreal.MoviePipelineEditorLibrary.save_queue_to_manifest_file(queue)
+    unreal.log("Saved rendering manifest to %s" % manifest_path)
+    return manifest_path
+
+def setup_turntable(fbx_file_path, assets_path, turntable_map_path):
+    """
+    Setup the turntable project to render the given FBX file.
+
+    :param str fbx_file_path: Full path to the FBX file to import and render.
+    :param str assets_path: Unreal path under which the FBX file should be imported.
+    :param str turntable_map_path: Unreal map path.
+    :returns: The loaded map path.
+    """
     # Import the FBX into Unreal using the unreal_importer script
-    current_folder = os.path.dirname( __file__ )
+    current_folder = os.path.dirname(__file__)
     
     if current_folder not in sys.path:
         sys.path.append(current_folder)
-
+    # TODO: check if there is any reason to keep this in another .py file
+    # instead of having it just here.
     import unreal_importer
 
-    unreal_importer.main(argv[0:2])
+    unreal.log("Importing FBX file %s under %s..." % (fbx_file_path, assets_path))
+    unreal_importer.import_fbx(fbx_file_path, assets_path)
 
-    fbx_file_path = argv[0]
-    content_browser_path = argv[1]
-    turntable_map_path = argv[2]
-
+    unreal.log("Loading map %s..." % turntable_map_path)
     # Load the turntable map where to instantiate the imported asset
     world = unreal.EditorLoadingAndSavingUtils.load_map(turntable_map_path)
     
     if not world:
+        unreal.error("Unable to load map %s" % turntable_map_path)
         return
-
+    unreal.log("Setting up turntable actor...")
     # Find the turntable actor, which is used in the turntable sequence that rotates it 360 degrees
     turntable_actor = None
     level_actors = unreal.EditorLevelLibrary.get_all_level_actors()
@@ -45,7 +105,8 @@ def main(argv):
     # Derive the imported asset path from the given FBX filename and content browser path
     fbx_filename = os.path.basename(fbx_file_path)
     asset_name = os.path.splitext(fbx_filename)[0]
-    asset_path_to_load =  content_browser_path + asset_name
+    # The path here is not a file path, it is an Unreal path so '/' is always used.
+    asset_path_to_load =  "%s/%s" % (assets_path, asset_name)
     
     # Load the asset to spawn it at origin
     asset = unreal.EditorAssetLibrary.load_asset(asset_path_to_load)
@@ -71,23 +132,34 @@ def main(argv):
     # Attach the newly spawned actor to the turntable
     actor.attach_to_actor(turntable_actor, "", unreal.AttachmentRule.KEEP_WORLD, unreal.AttachmentRule.KEEP_WORLD, unreal.AttachmentRule.KEEP_WORLD, False)
 
+    unreal.log("Saving current level...")
     unreal.EditorLevelLibrary.save_current_level()
-    
+    unreal.log("Saving map %s" % world.get_path_name())
+    # This seems to fail with:
+    # [2021.09.15-15.17.52:220][  1]Message dialog closed, result: Ok, title: Message, text: Failed to save the map. The filename '../../../../../../../var/folders/rt/vlgl5dzj75q2qg4t9fp9gfx80000gp/T/tmpO8A5Lw/turntable/Content/turntable/level/turntable.turntable.umap' is not within the game or engine content folders found in '/Users/Shared/Epic Games/UE_4.26/'.
+    unreal.EditorLoadingAndSavingUtils.save_map(world, world.get_path_name())
+    unreal.log("Turntable setup done.")
+    return world.get_path_name()
+
 if __name__ == "__main__":
     # Script arguments must be, in order:
     # Path to FBX to import
     # Unreal content browser path where to store the imported asset
     # Unreal content browser path to the turntable map to duplicate and where to spawn the asset
-    argv = []
+    # Retrieve arguments from the environment
+    fbx_file_path = os.environ["UNREAL_SG_FBX_OUTPUT_PATH"]
+    assets_path = os.environ["UNREAL_SG_ASSETS_PATH"]
+    turntable_map_path = os.environ["UNREAL_SG_MAP_PATH"]
 
-    if 'UNREAL_SG_FBX_OUTPUT_PATH' in os.environ:
-        argv.append(os.environ['UNREAL_SG_FBX_OUTPUT_PATH'])
+    # Additional settings to render with the Movie Render Queue
+    movie_path = os.environ.get("UNREAL_SG_MOVIE_OUTPUT_PATH")
+    level_sequence_path = os.environ.get("UNREAL_SG_SEQUENCE_PATH")
 
-    if 'UNREAL_SG_CONTENT_BROWSER_PATH' in os.environ:
-        argv.append(os.environ['UNREAL_SG_CONTENT_BROWSER_PATH'])
+    map_path = setup_turntable(fbx_file_path, assets_path, turntable_map_path)
 
-    if 'UNREAL_SG_MAP_PATH' in os.environ:
-        argv.append(os.environ['UNREAL_SG_MAP_PATH'])
-
-    if len(argv) == 3:
-        main(argv)
+    if movie_path and level_sequence_path:
+        setup_render_with_movie_render_queue(
+            movie_path,
+            map_path,
+            level_sequence_path,
+        )

@@ -203,7 +203,7 @@ settings.tk-multi-publish2.maya.asset_step:
         Unreal Project Path Template: "{config}/tk-multi-publish2/tk-maya/unreal/resources/{unreal_engine_version}/turntable/turntable.uproject"
         Turntable Map Path: "/Game/turntable/level/turntable.umap"
         Sequence Path: "/Game/turntable/sequence/turntable_sequence.turntable_sequence"
-        Turntable Assets Path: "/Game/maya_turntable_assets/"   # note the trailing '/' must be included
+        Turntable Assets Path: "/Game/maya_turntable_assets"
   help_url: *help_url
   location: "@apps.tk-multi-publish2.location"
 

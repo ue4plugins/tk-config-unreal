@@ -9,6 +9,7 @@ from sgtk.platform import SoftwareVersion
 
 import maya.cmds as cmds
 
+import copy
 import datetime
 import os
 import pprint
@@ -20,10 +21,6 @@ import tempfile
 
 HookBaseClass = sgtk.get_hook_baseclass()
 
-# Environment variables for turntable script
-OUTPUT_PATH_ENVVAR = 'UNREAL_SG_FBX_OUTPUT_PATH'
-CONTENT_BROWSER_PATH_ENVVAR = 'UNREAL_SG_CONTENT_BROWSER_PATH'
-MAP_PATH_ENVVAR = 'UNREAL_SG_MAP_PATH'
 
 class BrowsablePathWidget(QtGui.QFrame):
     """
@@ -709,12 +706,12 @@ class MayaUnrealTurntablePublishPlugin(HookBaseClass):
             return False
         item.properties["sequence_path"] = sequence_path
 
-        # Validate the Unreal content browser path, stash in properties
-        unreal_content_browser_path = settings["Turntable Assets Path"].value
-        if not unreal_content_browser_path:
-            self.logger.debug("No Unreal turntable assets output path configured.")
+        # Validate the Unreal turntable assets path, stash in properties
+        turntable_assets_path = settings["Turntable Assets Path"].value
+        if not turntable_assets_path:
+            self.logger.debug("No Unreal turntable assets path configured.")
             return False
-        item.properties["unreal_content_browser_path"] = unreal_content_browser_path
+        item.properties["turntable_assets_path"] = turntable_assets_path
 
         item.properties["path"] = path
         # Create the publish path by applying the fields. store it in the item's
@@ -838,7 +835,9 @@ class MayaUnrealTurntablePublishPlugin(HookBaseClass):
         unreal_project_path = item.properties["unreal_project_path"]
         turntable_map_path = item.properties["turntable_map_path"]
         sequence_path = item.properties["sequence_path"]
-        unreal_content_browser_path = item.properties["unreal_content_browser_path"]
+        turntable_assets_path = item.properties["turntable_assets_path"]
+        publish_path = self.get_publish_path(settings, item)
+        publish_path = os.path.normpath(publish_path)
 
         # This plugin publishes a turntable movie to Shotgun
         # These are the steps needed to do that
@@ -883,6 +882,15 @@ class MayaUnrealTurntablePublishPlugin(HookBaseClass):
         # 2. Import the FBX into Unreal.
         # 3. Instantiate the imported asset into a duplicate of the turntable map.
         # Use the unreal_setup_turntable to do this in Unreal
+        self.logger.info("Setting up Unreal turntable project...")
+        # Copy the Unreal project in a temp location so we can modify it
+        temp_dir = tempfile.mkdtemp()
+        project_path, project_file = os.path.split(unreal_project_path)
+        project_folder = os.path.basename(project_path)
+        temp_project_dir = os.path.join(temp_dir, project_folder)
+        temp_project_path = os.path.join(temp_project_dir, project_file)
+        self.logger.debug("Copying %s to %s" % (unreal_project_path, temp_project_path))
+        shutil.copytree(project_path, os.path.join(temp_dir, project_folder))
 
         current_folder = os.path.dirname( __file__ )
         script_path = os.path.abspath(
@@ -912,37 +920,35 @@ class MayaUnrealTurntablePublishPlugin(HookBaseClass):
             importer_destination = os.path.join(self.temp_folder, "unreal_importer.py")
             shutil.copy(importer_path, importer_destination)
 
-        if " " in unreal_project_path:
-            unreal_project_path = '"{}"'.format(unreal_project_path)
+        if " " in temp_project_path:
+            temp_project_path = '"{}"'.format(temp_project_path)
             
-        # Set the script arguments in the environment variables            
-        # The FBX to import into Unreal
-        os.environ[OUTPUT_PATH_ENVVAR] = fbx_output_path
-        self.logger.info("Setting environment variable {} to {}".format(OUTPUT_PATH_ENVVAR, fbx_output_path))
-
-        # The Unreal content browser folder where the asset will be imported into
-        os.environ[CONTENT_BROWSER_PATH_ENVVAR] = unreal_content_browser_path
-        self.logger.info("Setting environment variable {} to {}".format(CONTENT_BROWSER_PATH_ENVVAR, unreal_content_browser_path))
-
-        # The Unreal turntable map to duplicate where the asset will be instantiated into
-        os.environ[MAP_PATH_ENVVAR] = turntable_map_path
-        self.logger.info("Setting environment variable {} to {}".format(MAP_PATH_ENVVAR, turntable_map_path))
-
+        # Set the script arguments in the environment variables since we don't
+        # have ways to run the Editor with a Python script and pass its arguments
+        # on the command line.
+        run_env = copy.copy(os.environ)
+        # Environment variables for turntable script
+        extra_env = {
+            # The FBX to import into Unreal
+            "UNREAL_SG_FBX_OUTPUT_PATH": fbx_output_path,
+            # The Unreal content browser folder where the asset will be imported into
+            "UNREAL_SG_ASSETS_PATH": turntable_assets_path,
+            # The Unreal turntable map to duplicate where the asset will be instantiated into
+            "UNREAL_SG_MAP_PATH": turntable_map_path,
+            "UNREAL_SG_SEQUENCE_PATH": sequence_path,
+            "UNREAL_SG_MOVIE_OUTPUT_PATH": publish_path,
+        }
+        self.logger.info("Adding %s to the environment" % extra_env)
+        run_env.update(extra_env)
         self._unreal_execute_script(
             unreal_exec_path,
-            unreal_project_path,
-            script_path
+            temp_project_path,
+            script_path,
+            env=run_env,
         )
-
-        del os.environ[OUTPUT_PATH_ENVVAR]
-        del os.environ[CONTENT_BROWSER_PATH_ENVVAR]
-        del os.environ[MAP_PATH_ENVVAR]
 
         # =======================
         # 4. Render the turntable to movie.
-        # Output the movie to the publish path
-        publish_path = self.get_publish_path(settings, item)
-        publish_path = os.path.normpath(publish_path)
 
         # Split the destination path into folder and filename
         destination_folder = os.path.split(publish_path)[0]
@@ -952,15 +958,44 @@ class MayaUnrealTurntablePublishPlugin(HookBaseClass):
         # Ensure that the destination path exists before rendering the sequence
         self.parent.ensure_folder_exists(destination_folder)
         self.logger.info("Rendering turntable to %s" % publish_path)
-        # Render the turntable
-        self._unreal_render_sequence_to_movie(
-            unreal_exec_path,
-            unreal_project_path,
-            turntable_map_path,
-            sequence_path,
-            destination_folder,
-            movie_name
+
+        # Check if a Movie render queue manifest was saved in the Unreal Project: if so
+        # use it.
+        manifest_path = "MovieRenderPipeline/QueueManifest.utxt"
+        manifest_full_path = os.path.join(
+            temp_project_dir,
+            "Saved",
+            manifest_path,
         )
+        if os.path.isfile(manifest_full_path):
+            self.logger.info(
+                "Found Movie render queue manifest %s, "
+                "using Movie render queue for rendering..." % manifest_full_path
+            )
+            # Workaround for Level Sequencer only rendering avi on Windows and Movie Queue rendering
+            # mov on all platforms
+            publish_path = re.sub("\.avi$", ".mov", publish_path)
+            item.local_properties["publish_path"] = publish_path
+            self._unreal_render_movie_with_movie_render_queue(
+                unreal_exec_path,
+                temp_project_path,
+                manifest_path,
+                publish_path,
+            )
+        else:
+            self.logger.info(
+                "Couldn't find a Movie render queue manifest in %s, "
+                "using Level sequencer for rendering..." % manifest_full_path
+            )
+            # Render the turntable
+            self._unreal_render_movie_with_sequencer(
+                unreal_exec_path,
+                temp_project_path,
+                turntable_map_path,
+                sequence_path,
+                publish_path,
+            )
+
         if not os.path.isfile(publish_path):
             raise RuntimeError(
                 "Expected file %s was not generated" % publish_path
@@ -1079,8 +1114,16 @@ class MayaUnrealTurntablePublishPlugin(HookBaseClass):
             
         return True
         
-    def _unreal_execute_script(self, unreal_exec_path, unreal_project_path, script_path):
+    def _unreal_execute_script(self, unreal_exec_path, unreal_project_path, script_path, env=None):
         """
+        Execute in a subprocess the given Python script in Unreal for the given project.
+
+        :param str unreal_exec_path: Full path to Unreal executable.
+        :param str unreal_project_path: Full path to Unreal project to load.
+        :param str script_path: Full path to a Python script.
+        :param str env: Optional dictionary with the environment variables to set
+                        in the subprocess. If not set, the current environment
+                        variables are used.
         """
         command_args = []
         if sys.platform == "darwin" and os.path.splitext(unreal_exec_path)[1] == ".app":
@@ -1105,41 +1148,19 @@ class MayaUnrealTurntablePublishPlugin(HookBaseClass):
         self.logger.info(
             "Executing script in Unreal with arguments: {}".format(command_args)
         )
-        subprocess.call(command_args)
+        subprocess.call(
+            command_args,
+            env=env,
+        )
 
-    def _unreal_render_sequence_to_movie(self, unreal_exec_path, unreal_project_path, unreal_map_path, sequence_path, destination_path, movie_name):
+    def _get_unreal_base_command(self, unreal_exec_path, unreal_project_path):
         """
-        Renders a given sequence in a given level to a movie file
-        
-        :param destination_path: Destionation folder where to generate the movie file
-        :param unreal_map_path: Path of the Unreal map in which to run the sequence
-        :param sequence_path: Content Browser path of sequence to render
-        :param movie_name: Filename of the movie that will be generated
-        :returns: True if a movie file was generated, False otherwise
-                  string representing the path of the generated movie file
+        Return the base command line arguments to run Unreal in a subprocess.
+
+        :param str unreal_exec_path: Full path to Unreal executable.
+        :param str unreal_project_path: Full path to the Unreal Project file to load.
+        :returns: A list of command line arguments.
         """
-        # First, check if there's a file that will interfere with the output of the Sequencer
-        # Sequencer can only render to avi file format on Windows
-        if sys.platform == "win32":
-            output_filename = "{}.avi".format(movie_name)
-        else:
-            # Use .mov for other platforms
-            output_filename = "{}.mov".format(movie_name)
-        output_filepath = os.path.join(destination_path, output_filename)
-
-        if os.path.isfile(output_filepath):
-            # Must delete it first, otherwise the Sequencer will add a number in the filename
-            try:
-                os.remove(output_filepath)
-            except OSError as e:
-                self.logger.debug("Couldn't delete {}. The Sequencer won't be able to output the movie to that file.".format(output_filepath))
-                return False, None
-
-        # Render the sequence to a movie file using the following command-line arguments
-        cmdline_args = []
-        
-        # Note that any command-line arguments (usually paths) that could contain spaces must be enclosed between quotes
-
         if sys.platform == "darwin" and os.path.splitext(unreal_exec_path)[1] == ".app":
             # Special case for Osx if the Unreal.app was chosen instead of the
             # executable
@@ -1151,20 +1172,59 @@ class MayaUnrealTurntablePublishPlugin(HookBaseClass):
                 unreal_exec_path,  # Unreal executable path
                 "--args",
                 unreal_project_path,  # Unreal project
-                unreal_map_path,  # Level to load for rendering the sequence
             ]
         else:
             cmdline_args = [
                 unreal_exec_path,  # Unreal executable path
                 unreal_project_path,  # Unreal project
-                unreal_map_path,  # Level to load for rendering the sequence
             ]
+        return cmdline_args
+
+    def _unreal_render_movie_with_sequencer(
+        self,
+        unreal_exec_path,
+        unreal_project_path,
+        unreal_map_path,
+        sequence_path,
+        output_path
+    ):
+        """
+        Renders a given sequence in a given level to a movie file with Level Sequencer.
+        
+        :param str unreal_exec_path: Full path to Unreal executable.
+        :param str unreal_project_path: Full path to the Unreal Project file.
+        :param str unreal_map_path: Path of the Unreal map in which to run the sequence
+        :param str sequence_path: Content Browser path of sequence to render
+        :param str output_path: Full path to the movie to render.
+        :returns: True if a movie file was generated, False otherwise
+                  string representing the path of the generated movie file
+        """
+        output_folder, output_file = os.path.split(output_path)
+        movie_name = os.path.splitext(output_file)[0]
+
+        # First, check if there's a file that will interfere with the output of the Sequencer
+        if os.path.isfile(output_path):
+            # Must delete it first, otherwise the Sequencer will add a number in the filename
+            try:
+                os.remove(output_filepath)
+            except OSError as e:
+                self.logger.debug("Couldn't delete {}. The Sequencer won't be able to output the movie to that file.".format(output_path))
+                return False, None
+
+        # Render the sequence to a movie file using the following command-line arguments
+        cmdline_args = self._get_unreal_base_command(
+            unreal_exec_path,
+            unreal_project_path,
+        )
+        
+        # Note that any command-line arguments (usually paths) that could contain spaces must be enclosed between quotes
 
         # Command-line arguments for Sequencer Render to Movie
         # See: https://docs.unrealengine.com/en-us/Engine/Sequencer/Workflow/RenderingCmdLine
         cmdline_args.extend([
+            unreal_map_path,  # Level to load for rendering the sequence
             "-LevelSequence={}".format(sequence_path),  # The sequence to render
-            '-MovieFolder="{}"'.format(destination_path),  # Output folder, must match the work template
+            '-MovieFolder="{}"'.format(output_folder),  # Output folder, must match the work template
             "-MovieName={}".format(movie_name),  # Output filename
             "-game",
             "-MovieSceneCaptureType=/Script/MovieSceneCapture.AutomatedLevelSequenceCapture",
@@ -1186,7 +1246,81 @@ class MayaUnrealTurntablePublishPlugin(HookBaseClass):
         # TODO: fix command line arguments which contain space.
         subprocess.call(cmdline_args)
 
-        return os.path.isfile(output_filepath), output_filepath
+        return os.path.isfile(output_path), output_path
+
+    def _unreal_render_movie_with_movie_render_queue(
+        self,
+        unreal_exec_path,
+        unreal_project_path,
+        manifest_path,
+        output_path
+    ):
+        """
+        Renders a given sequence in a given level to a movie file with Movie Render queue.
+
+        :param str unreal_exec_path: Full path to Unreal executable.
+        :param str unreal_project_path: Full path to the Unreal Project file.
+        :param str manifest_path: Path a to Movie Render Queue manifest file, local
+                                  to the Unreal Project, e.g. 'Saved/MovieRenderPipeline/QueueManifest.utxt'.
+        :param str output_path: Full path to the movie to render.
+        :returns: True if a movie file was generated, False otherwise
+                  string representing the path of the generated movie file
+        """
+        output_folder, output_file = os.path.split(output_path)
+        movie_name = os.path.splitext(output_file)[0]
+
+        cmdline_args = self._get_unreal_base_command(
+            unreal_exec_path,
+            unreal_project_path,
+        )
+
+        # Command line parameters were retrieved by submitting a queue in Unreal Editor with
+        # a MoviePipelineNewProcessExecutor executor.
+        # https://docs.unrealengine.com/4.27/en-US/PythonAPI/class/MoviePipelineNewProcessExecutor.html?highlight=executor
+        cmdline_args.extend([
+            "MoviePipelineEntryMap?game=/Script/MovieRenderPipelineCore.MoviePipelineGameMode",
+            "-game",
+            "-Multiprocess",
+            "-NoLoadingScreen",
+            "-FixedSeed",
+            "-log",
+            "-Unattended",
+            "-messaging",
+            "-SessionName=\"Maya Turntable Movie Render\"",
+            "-nohmd",
+            "-windowed",
+            "-ResX=1280",
+            "-ResY=720",
+            # TODO: check what these settings are
+            "-dpcvars=%s" % ",".join([
+                "sg.ViewDistanceQuality=4",
+                "sg.AntiAliasingQuality=4",
+                "sg.ShadowQuality=4",
+                "sg.PostProcessQuality=4",
+                "sg.TextureQuality=4",
+                "sg.EffectsQuality=4",
+                "sg.FoliageQuality=4",
+                "sg.ShadingQuality=4",
+                "r.TextureStreaming=0",
+                "r.ForceLOD=0",
+                "r.SkeletalMeshLODBias=-10",
+                "r.ParticleLODBias=-10",
+                "foliage.DitheredLOD=0",
+                "foliage.ForceLOD=0",
+                "r.Shadow.DistanceScale=10",
+                "r.ShadowQuality=5",
+                "r.Shadow.RadiusThreshold=0.001000",
+                "r.ViewDistanceScale=50",
+                "r.D3D12.GPUTimeout=0",
+                "a.URO.Enable=0",
+            ]),
+            "-execcmds=r.HLOD 0",
+            # This need to be a path relative the to the Unreal project "Saved" folder.
+            "-MoviePipelineConfig=\"%s\"" % manifest_path,
+        ])
+        self.logger.info("Running %s" % cmdline_args)
+        ret = subprocess.call(cmdline_args)
+        return os.path.isfile(output_path), output_path
 
     def get_unreal_versions(self):
         """
