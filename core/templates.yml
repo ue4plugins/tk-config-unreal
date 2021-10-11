@@ -738,7 +738,6 @@ paths:
     vred_asset_render_sequence_publish:
         definition: '@asset_root/publish/images/{name}/v{version}/{Asset}_{name}_v{version}[-{vred.render_pass}]-{vred.frame}.{vred.render_extension}'
 
-
     #
     # Unreal
     #
@@ -748,7 +747,6 @@ paths:
     # No context info used in template, developers expected to further customize
     unreal_asset_publish:
         definition: 'assets/unrealdemo/exports/{YYYY}_{MM}_{DD}/{name}.fbx'
-
 
 #
 # The strings section is similar to the paths section - but rather than defining paths
