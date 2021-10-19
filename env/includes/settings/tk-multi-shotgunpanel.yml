@@ -12,6 +12,7 @@
 
 includes:
 - ../app_locations.yml
+- ../unreal/settings/tk-multi-shotgunpanel.yml
 
 ################################################################################
 
@@ -231,11 +232,7 @@ settings.tk-multi-shotgunpanel.photoshop:
   location: "@apps.tk-multi-shotgunpanel.location"
 
 # unreal
-settings.tk-multi-shotgunpanel.unreal:
-  actions_hook: '{self}/general_actions.py:{engine}/tk-multi-shotgunpanel/tk-unreal_actions.py'
-  action_mappings: {}
-  enable_context_switch: true
-  location: "@apps.tk-multi-shotgunpanel.location"
+settings.tk-multi-shotgunpanel.unreal: "@settings.tk-multi-shotgunpanel.unreal"
 
 # after effects
 settings.tk-multi-shotgunpanel.aftereffects:

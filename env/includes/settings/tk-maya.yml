@@ -21,6 +21,7 @@ includes:
 - ./tk-multi-shotgunpanel.yml
 - ./tk-multi-snapshot.yml
 - ./tk-multi-workfiles2.yml
+- ../unreal/settings/tk-multi-publish2.yml
 
 ################################################################################
 
@@ -45,7 +46,7 @@ settings.tk-maya.asset_step:
     tk-multi-breakdown:
       location: "@apps.tk-multi-breakdown.location"
     tk-multi-loader2: "@settings.tk-multi-loader2.maya"
-    tk-multi-publish2: "@settings.tk-multi-publish2.maya.asset_step"
+    tk-multi-publish2: "@settings.tk-multi-publish2.maya.asset_step.unreal"
     tk-multi-screeningroom: "@settings.tk-multi-screeningroom.rv"
     tk-multi-shotgunpanel: "@settings.tk-multi-shotgunpanel.maya"
     tk-multi-snapshot: "@settings.tk-multi-snapshot.maya.asset_step"

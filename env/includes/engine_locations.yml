@@ -78,9 +78,3 @@ engines.tk-vred.location:
   type: app_store
   name: tk-vred
   version: v2.1.1
-# Unreal
-engines.tk-unreal.location:
-  type: github_release
-  organization: ue4plugins
-  repository: tk-unreal
-  version: v1.1.0

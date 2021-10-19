@@ -30,7 +30,7 @@ includes:
 - ./includes/settings/tk-vred.yml
 - ./includes/settings/tk-shell.yml
 - ./includes/settings/tk-shotgun.yml
-- ./includes/settings/tk-unreal.yml
+- ./includes/unreal/settings/tk-unreal.yml
 
 ################################################################################
 # configuration for all engines to load in a project context
