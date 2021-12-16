@@ -22,7 +22,7 @@ https://developer.shotgridsoftware.com/8085533c/?title=ShotGrid+Integrations+Adm
 ## Updating this config with changes from the ShotGrid default2 config
 
 It is possible to update this config with latest changes done on the ShotGrid default2 config, for example
-to udpate ShotGrid Toolkit standard apps to their latest approved version.
+to update ShotGrid Toolkit standard apps to their latest approved version.
 
 This can be done by merging a particular ShotGrid default2 config into a branch and merging this branch once checked on master
 
