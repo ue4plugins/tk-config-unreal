@@ -7,6 +7,5 @@
 tk-unreal.location:
   version: v1.2.3
   type: github_release
-  organization: GPLgithub
-#  organization: ue4plugins
+  organization: ue4plugins
   repository: tk-unreal
