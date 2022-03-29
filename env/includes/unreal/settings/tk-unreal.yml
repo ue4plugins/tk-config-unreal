@@ -15,18 +15,6 @@ includes:
 
 ################################################################################
 
-# asset_step
-settings.tk-unreal.asset_step:
-  apps:
-    tk-multi-about:
-      location: "@apps.tk-multi-about.location"
-    tk-multi-pythonconsole:
-      location: "@apps.tk-multi-pythonconsole.location"
-  location: "@tk-unreal.location"
-  menu_favourites: []
-  run_at_startup: []
-  launch_builtin_plugins: [basic]
-  automatic_context_switch: false
 
 # project
 settings.tk-unreal.project:

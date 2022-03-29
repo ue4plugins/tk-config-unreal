@@ -29,7 +29,6 @@ includes:
 - ./includes/settings/tk-vred.yml
 - ./includes/settings/tk-shell.yml
 - ./includes/settings/tk-shotgun.yml
-- ./includes/unreal/settings/tk-unreal.yml
 
 ################################################################################
 # configuration for all engines to load in an asset step context
@@ -50,7 +49,6 @@ engines:
   tk-vred: "@settings.tk-vred.asset_step"
   tk-shell: "@settings.tk-shell.asset_step"
   tk-shotgun: "@settings.tk-shotgun.asset_step"
-  tk-unreal: "@settings.tk-unreal.asset_step"
 
 ################################################################################
 # reference all of the common frameworks
