@@ -96,6 +96,8 @@ settings.tk-multi-shotgunpanel.maya:
       filters: {published_file_type: Image}
     - actions: [reference, import]
       filters: {published_file_type: Maya Scene}
+    - actions: [reference, import]
+      filters: {published_file_type: Maya FBX}
     - actions: [texture_node, image_plane]
       filters: {published_file_type: Photoshop Image}
     - actions: [texture_node, image_plane]
@@ -104,6 +106,8 @@ settings.tk-multi-shotgunpanel.maya:
       filters: {published_file_type: Texture}
     - actions: [udim_texture_node]
       filters: {published_file_type: UDIM Image}
+    - actions: [reference, import]
+      filters: {published_file_type: Unreal FBX}
     - actions: [publish_clipboard]
       filters: {}
     Task:
