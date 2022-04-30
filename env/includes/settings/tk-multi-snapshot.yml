@@ -15,18 +15,28 @@ includes:
 
 ################################################################################
 
-# ---- 3dsMax
+# ---- 3dsMaxPlus
 
-settings.tk-multi-snapshot.3dsmax.asset_step:
+settings.tk-multi-snapshot.3dsmaxplus.asset_step: &settings_tk-multi-snapshot_3dsmaxplus_asset_step
   template_snapshot: max_asset_snapshot
   template_work: max_asset_work
   location: "@apps.tk-multi-snapshot.location"
 
-settings.tk-multi-snapshot.3dsmax.shot_step:
+settings.tk-multi-snapshot.3dsmaxplus.shot_step: &settings_tk-multi-snapshot_3dsmaxplus_shot_step
   template_snapshot: max_shot_snapshot
   template_work: max_shot_work
   location: "@apps.tk-multi-snapshot.location"
 
+################################################################################
+
+# ---- 3dsMax
+
+settings.tk-multi-snapshot.3dsmax.asset_step:
+  <<: *settings_tk-multi-snapshot_3dsmaxplus_asset_step
+  hook_scene_operation: "{engine}/tk-multi-snapshot/basic/scene_operation.py"
+settings.tk-multi-snapshot.3dsmax.shot_step:
+  <<: *settings_tk-multi-snapshot_3dsmaxplus_shot_step
+  hook_scene_operation: "{engine}/tk-multi-snapshot/basic/scene_operation.py"
 
 ################################################################################
 
@@ -103,6 +113,24 @@ settings.tk-multi-snapshot.photoshop.shot_step:
 
 ################################################################################
 
+# ---- After Effects
+
+# asset step
+settings.tk-multi-snapshot.aftereffects.asset_step:
+  template_snapshot: aftereffects_asset_snapshot
+  template_work: aftereffects_asset_work
+  hook_scene_operation: "{engine}/tk-multi-snapshot/basic/scene_operation.py"
+  location: "@apps.tk-multi-snapshot.location"
+
+# shot step
+settings.tk-multi-snapshot.aftereffects.shot_step:
+  template_snapshot: aftereffects_shot_snapshot
+  template_work: aftereffects_shot_work
+  hook_scene_operation: "{engine}/tk-multi-snapshot/basic/scene_operation.py"
+  location: "@apps.tk-multi-snapshot.location"
+
+################################################################################
+
 # ---- Motion Builder
 
 # asset step
@@ -117,3 +145,24 @@ settings.tk-multi-snapshot.motionbuilder.shot_step:
   template_work: mobu_shot_work
   location: "@apps.tk-multi-snapshot.location"
 
+################################################################################
+
+# ---- Alias
+
+# asset step
+settings.tk-multi-snapshot.alias.asset_step:
+  template_snapshot: alias_asset_snapshot
+  template_work: alias_asset_work
+  hook_scene_operation: "{engine}/tk-multi-snapshot/basic/scene_operation.py"
+  location: "@apps.tk-multi-snapshot.location"
+
+################################################################################
+
+# ---- VRED
+
+# asset step
+settings.tk-multi-snapshot.vred.asset_step:
+  template_snapshot: vred_asset_snapshot
+  template_work: vred_asset_work
+  hook_scene_operation: "{engine}/tk-multi-snapshot/basic/scene_operation.py"
+  location: "@apps.tk-multi-snapshot.location"
