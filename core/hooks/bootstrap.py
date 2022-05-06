@@ -54,11 +54,7 @@ class Bootstrap(get_hook_baseclass()):
         :raises RuntimeError: If six.moves is not available.
         """
         descd = descriptor.get_dict()
-        # Some descriptors like shotgun descriptors don't have a path: ignore
-        # them.
-        if not descd.get("path"):
-            return False
-        return bool(self._should_download_release(descd["path"]))
+        return bool(self._should_download_release(descd))
 
     def populate_bundle_cache_entry(self, destination, descriptor, **kwargs):
         """
@@ -92,9 +88,7 @@ class Bootstrap(get_hook_baseclass()):
         descd = descriptor.get_dict()
         version = descriptor.version
         self.logger.info("Treating %s" % descd)
-        # We check for the existence of the "path" key in can_cache_bundle
-        # this method is only called if it exists.
-        specs = self._should_download_release(descd["path"])
+        specs = self._should_download_release(descd)
         if not specs:
             raise RuntimeError("Don't know how to download %s" % descd)
         name = specs[0]
@@ -173,17 +167,28 @@ class Bootstrap(get_hook_baseclass()):
             self.logger.exception(e)
             raise
 
-    def _should_download_release(self, desc_path):
+    def _should_download_release(self, desc):
         """
-        Return a repo name and a token if the given descriptor path should be downloaded
+        Return a repo name and a token if the given descriptor should be downloaded
         from a github release.
 
-        :param str desc_path: A Toolkit descriptor path.
+        :param str desc: A Toolkit descriptor.
         :returns: A name, token tuple or ``None``.
         """
-        for name, token in self._download_release_from_github:
-            if "git@github.com:%s.git" % name == desc_path:
-                return name, token
+        if desc["type"] == "github_release":
+            # Let's be safe...
+            if not desc.get("organization") or not desc.get("repository"):
+                return None
+            desc_path = "%s/%s" % (desc["organization"], desc["repository"])
+            for name, token in self._download_release_from_github:
+                if name == desc_path:
+                    return name, token
+        elif desc.get("path"):
+            # Check the path for a git descriptor
+            desc_path = desc["path"]
+            for name, token in self._download_release_from_github:
+                if "git@github.com:%s.git" % name == desc_path:
+                    return name, token
         return None
 
     def _download_zip_github_asset(self, asset, destination, token):
