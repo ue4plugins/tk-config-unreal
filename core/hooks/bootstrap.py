@@ -138,7 +138,7 @@ class Bootstrap(get_hook_baseclass()):
             for asset in response_d["assets"]:
                 name = asset["name"]
                 m = re.match(
-                    "%s-py\d.\d-%s.zip" % (version, pname),
+                    r"%s-py\d.\d-%s.zip" % (version, pname),
                     name
                 )
                 if m:
