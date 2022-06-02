@@ -6,7 +6,7 @@
 frameworks:
     tk-framework-unrealqt_v1.x.x:
       location:
-        version: v1.3.0
+        version: v1.2.1
         type: github_release
         organization: ue4plugins
         repository: tk-framework-unrealqt
