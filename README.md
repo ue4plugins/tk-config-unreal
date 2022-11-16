@@ -13,7 +13,7 @@ Unreal engine as well as several unreal related options in Maya.
 For more information how to use the unreal engine, please see the support
 documentation:
 
-https://docs.unrealengine.com/en-US/Engine/Content/UsingUnrealEnginewithAutodeskShotGrid/index.html
+https://docs.unrealengine.com/5.0/en-US/using-unreal-engine-with-autodesk-shotgrid/
 
 For more information about ShotGrid integrations, go to the following url:
 https://developer.shotgridsoftware.com/8085533c/?title=ShotGrid+Integrations+Admin+Guide
